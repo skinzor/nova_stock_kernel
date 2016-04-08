@@ -3844,7 +3844,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 
 	mutex_lock(&xhci->mutex);
 
-	if (xhci->xhc_state)	/* dying, removing or halted */
+    if (xhci->xhc_state) /* dying, removing or halted */
 		goto out;
 
 	if (!udev->slot_id) {
