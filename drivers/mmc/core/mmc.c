@@ -406,6 +406,9 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 	}
 }
 
+/* Minimum partition switch timeout in milliseconds */
+#define MMC_MIN_PART_SWITCH_TIME	300
+
 /*
  * Decode extended CSD.
  */
@@ -471,6 +474,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		/* EXT_CSD value is in units of 10ms, but we store in ms */
 		if(card->cid.manfid == CID_MANFID_HYNIX)
 			ext_csd[EXT_CSD_PART_SWITCH_TIME] = 0xA;
+		/* Some eMMC set the value too low so set a minimum */
 		card->ext_csd.part_time = 10 * ext_csd[EXT_CSD_PART_SWITCH_TIME];
 		if (card->ext_csd.part_time &&
 			card->ext_csd.part_time < MMC_MIN_PART_SWITCH_TIME)
