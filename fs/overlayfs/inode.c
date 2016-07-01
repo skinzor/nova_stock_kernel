@@ -424,7 +424,7 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode,
 	if (!inode)
 		return NULL;
 
-	mode &= S_IFMT;
+    mode &= S_IFMT;
 
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
