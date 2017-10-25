@@ -115,15 +115,6 @@
 			reg = <0x0 0x92200000 0x0 0x0100000>;
 			label = "hwlog_tz_mem";
 		};
-
-		hwboot_fail_mem: hwboot_fail_region@0 {
-			linux,reserve-contiguous-region;
-			linux,reserve-region;
-			linux,remove-completely;
-			no-map;
-			reg = <0x0 0x86800000 0x0 0x0100000>;
-			label = "hwboot_fail_mem";
-		};
 	};
 
 	aliases {
