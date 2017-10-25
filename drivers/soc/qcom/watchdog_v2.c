@@ -32,7 +32,6 @@
 #ifdef CONFIG_HUAWEI_RESET_DETECT
 #include <linux/huawei_reset_detect.h>
 #endif
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 #define MODULE_NAME "msm_watchdog"
 #define WDT0_ACCSCSSNBARK_INT 0

@@ -35,7 +35,6 @@
 #ifdef CONFIG_HUAWEI_RESET_DETECT
 #include <linux/huawei_reset_detect.h>
 #endif
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 #include <linux/fcntl.h>
 #include <linux/syscalls.h>

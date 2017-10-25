@@ -26,7 +26,6 @@
 #include <linux/personality.h>
 #include <linux/backing-dev.h>
 #include <net/flow.h>
-#include <chipset_common/bfmr/bfm/chipsets/bfm_chipsets.h>
 
 #define MAX_LSM_EVM_XATTR	2
 

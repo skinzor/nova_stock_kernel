@@ -78,8 +78,6 @@
 #include <linux/context_tracking.h>
 #include <linux/random.h>
 #include <linux/list.h>
-#include <chipset_common/bfmr/bfm/chipsets/bfm_chipsets.h>
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 
 #include <asm/io.h>

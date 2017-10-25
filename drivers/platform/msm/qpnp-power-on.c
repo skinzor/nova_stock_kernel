@@ -44,9 +44,6 @@
 #include <linux/kallsyms.h>
 #include <linux/syscalls.h>
 #include <linux/rtc.h>
-#include <chipset_common/bfmr/bfm/core/bfm_core.h>
-#include <chipset_common/bfmr/bfm/chipsets/bfm_chipsets.h>
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 #define CREATE_MASK(NUM_BITS, POS) \
 	((unsigned char) (((1 << (NUM_BITS)) - 1) << (POS)))

@@ -61,7 +61,6 @@
 extern u64 device_index;
 #include <linux/mmc/dsm_emmc.h>
 #endif
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 /* If the device is not responding */
 #define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
