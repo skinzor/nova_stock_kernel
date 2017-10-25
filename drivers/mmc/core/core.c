@@ -3908,7 +3908,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		return 0;
 	if (!mmc_attach_sd(host))
 		return 0;
-	if (!mmc_attach_mmc(host)
+	if (!mmc_attach_mmc(host))
 		return 0;
 	mmc_power_off(host);
 	return -EIO;
