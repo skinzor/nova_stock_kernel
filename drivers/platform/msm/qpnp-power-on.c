@@ -1157,7 +1157,6 @@ static void long_press_bark_work_func(struct work_struct *work) {
         pr_err("%s: curBootUpTime is %ld \n",__func__,curBootUpTime.tv_sec);
         if (curBootUpTime.tv_sec > USER_WAIT_SECS_ON_LOGO)
         {
-            qcom_set_boot_fail_flag(KERNEL_PRESS10S);
             msm_trigger_wdog_bark();
         }
     }

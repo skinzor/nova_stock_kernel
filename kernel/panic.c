@@ -82,8 +82,6 @@ void panic(const char *fmt, ...)
 	long i, i_next = 0;
 	int state = 0;
 
-	qcom_set_boot_fail_flag(KERNEL_AP_PANIC);
-
 	trace_kernel_panic(0);
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop

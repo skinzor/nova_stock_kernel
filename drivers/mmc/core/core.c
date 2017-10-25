@@ -3912,7 +3912,6 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		return 0;
 	else if (host->caps & MMC_CAP_NONREMOVABLE)
 	{
-		qcom_set_boot_fail_flag(KERNEL_EMMC_INIT_FAIL);
 		panic("Boot_monitor detect error:KERNEL_EMMC_INIT_FAI\n");
 	}
 	mmc_power_off(host);

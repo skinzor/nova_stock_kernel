@@ -832,7 +832,6 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 		if (sysrq_down && value && value != 2) {
 			pr_info("trigger system crash by sysrq.\n");
 			/* trigger system crash */
-			qcom_set_boot_fail_flag(KERNEL_AP_COMBINATIONKEY);
 			__handle_sysrq('c', true);
 		}
 		break;

@@ -428,8 +428,6 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 	unsigned long nanosec_rem;
 	unsigned long long t = sched_clock();
 
-	qcom_set_boot_fail_flag(KERNEL_AP_WDT);
-	pr_err("Boot_monitor detect error:KERNEL_AP_WDT\n");
 	nanosec_rem = do_div(t, 1000000000);
 	printk(KERN_INFO "Watchdog bark! Now = %lu.%06lu\n", (unsigned long) t,
 		nanosec_rem / 1000);
