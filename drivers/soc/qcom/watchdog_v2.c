@@ -731,8 +731,6 @@ static int msm_watchdog_probe(struct platform_device *pdev)
 		goto err;
 	}
 	init_watchdog_data(wdog_dd);
-	if(check_bootfail_inject(KERNEL_AP_WDT))
-		msm_trigger_wdog_bark();
 
 	return 0;
 err:

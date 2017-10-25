@@ -3908,10 +3908,8 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		return 0;
 	if (!mmc_attach_sd(host))
 		return 0;
-	if (!mmc_attach_mmc(host) && !check_bootfail_inject(KERNEL_EMMC_INIT_FAIL))
-	{
+	if (!mmc_attach_mmc(host)
 		return 0;
-	}
 	mmc_power_off(host);
 	return -EIO;
 }
