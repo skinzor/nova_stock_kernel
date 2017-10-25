@@ -3909,10 +3909,8 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	if (!mmc_attach_sd(host))
 		return 0;
 	if (!mmc_attach_mmc(host) && !check_bootfail_inject(KERNEL_EMMC_INIT_FAIL))
-		return 0;
-	else if (host->caps & MMC_CAP_NONREMOVABLE)
 	{
-		panic("Boot_monitor detect error:KERNEL_EMMC_INIT_FAI\n");
+		return 0;
 	}
 	mmc_power_off(host);
 	return -EIO;
