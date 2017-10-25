@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/nmi.h>
 #include <linux/console.h>
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/exception.h>
