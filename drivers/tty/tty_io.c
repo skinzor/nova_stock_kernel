@@ -3535,9 +3535,10 @@ void __init console_init(void)
 {
 	initcall_t *call;
 
+#ifdef CONFIG_HUAWEI_BFM
 	bfm_set_boot_stage(KERNEL_CONSOLE_INITCALL);
 	printk(KERN_INFO "Boot_monitor set stage:KERNEL_CONSOLE_INITCALL\n");
-
+#endif
 	/* Setup the default TTY line discipline. */
 	tty_ldisc_begin();
 

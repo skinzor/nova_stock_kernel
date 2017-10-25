@@ -52,8 +52,10 @@ static void __init do_security_initcalls(void)
 {
 	initcall_t *call;
 
+#ifdef CONFIG_HUAWEI_BFM
 	bfm_set_boot_stage(KERNEL_SECURITY_INITCALL);
 	printk(KERN_INFO "Boot_monitor set stage:KERNEL_SECURITY_INITCALL\n");
+#endif
 
 	call = __security_initcall_start;
 	while (call < __security_initcall_end) {
