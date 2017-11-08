@@ -2767,7 +2767,9 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);
 
+#ifdef CONFIG_HUAWEI_PMU_DSM
 	INIT_DELAYED_WORK(&pon->long_press_bark_work, long_press_bark_work_func);
+#endif
 
 #ifdef CONFIG_HUAWEI_DSM
 	init_timer(&lcd_pwr_status.lcd_dsm_t);
