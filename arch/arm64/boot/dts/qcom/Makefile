@@ -238,12 +238,6 @@ dtb-$(CONFIG_ARCH_MSM8940) += msm8940-pmi8937-cdp.dtb \
 	msm8940-pmi8940-rcm.dtb \
 	msm8940-pmi8940-qrd-sku7.dtb
 
-dtb-$(CONFIG_MSM8940_SUPPORTED_PRODUCT) += huawei-trt-al00-va.dtb \
-    huawei-trt-tl10-va.dtb \
-    huawei-trt-l21-va.dtb \
-    huawei-trt-l22-va.dtb \
-    huawei-trt-l23-va.dtb
-
 dtb-$(CONFIG_ARCH_MDM9607) += mdm9607-rumi.dtb \
 	mdm9607-cdp.dtb \
 	mdm9607-mtp.dtb \
