@@ -413,11 +413,7 @@ static void rasf2fs_record_area_page(struct f2fs_super_block *super,
 	    ssa_blkaddr;
 	fault_injected.area_page[sb_type][FAULT_AREA_SSA].page_num = ssa_blocks;
 }
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-static int rasprobe_handler(__bread_gfp) (struct rasprobe_instance *ri,
-#else
 static int rasprobe_handler(__bread) (struct rasprobe_instance *ri,
-#endif
 				      struct pt_regs *regs)
 {
 	char *f2fs_super;
@@ -438,19 +434,11 @@ static int rasprobe_handler(__bread) (struct rasprobe_instance *ri,
 	return 0;
 }
 
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-rasprobe_define(__bread_gfp);
-#else
 rasprobe_define(__bread);
-#endif
 rasprobe_define(get_meta_page);
 static struct rasprobe *probes[] = {
 	&rasprobe_name(get_meta_page),
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-	&rasprobe_name(__bread_gfp),
-#else
 	&rasprobe_name(__bread),
-#endif
 };
 static int cmd_main(void *data, int argc, char *args[])
 {
