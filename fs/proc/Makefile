@@ -34,4 +34,3 @@ proc-y	+= check_root.o
 proc-$(CONFIG_APP_INFO)         += app_info.o
 proc-y	+= dcheck_root.o
 proc-$(CONFIG_HUAWEI_SWAP_ZDATA) += process_reclaim_info.o
-proc-$(CONFIG_HUAWEI_PROC_MEMORYINFO_FAST) += meminfo_lite.o
