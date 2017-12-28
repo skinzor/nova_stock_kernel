@@ -33,4 +33,3 @@ proc-$(CONFIG_PROC_PAGE_MONITOR)	+= page.o
 proc-y	+= check_root.o
 proc-$(CONFIG_APP_INFO)         += app_info.o
 proc-y	+= dcheck_root.o
-proc-$(CONFIG_HUAWEI_SWAP_ZDATA) += process_reclaim_info.o
