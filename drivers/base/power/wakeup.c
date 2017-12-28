@@ -19,9 +19,6 @@
 #include <linux/hw_power_monitor.h>
 #include "power.h"
 
-#ifdef CONFIG_HUAWEI_SLEEPLOG
-#include <linux/proc_fs.h>
-#endif
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -1033,15 +1030,3 @@ static int __init wakeup_sources_debugfs_init(void)
 }
 
 postcore_initcall(wakeup_sources_debugfs_init);
-
-#ifdef CONFIG_HUAWEI_SLEEPLOG
-static int __init wakeup_sources_proc_init(void)
-{
-    proc_create("wakeup_sources", S_IRUGO,
-        (struct proc_dir_entry *)NULL, &wakeup_sources_stats_fops);
-    return 0;
-}
-/*lint -e528 -esym(528,*)*/
-late_initcall(wakeup_sources_proc_init);
-/*lint -e528 +esym(528,*)*/
-#endif
