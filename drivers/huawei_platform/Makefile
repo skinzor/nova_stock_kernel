@@ -5,4 +5,3 @@ obj-y   += antenna_board_match/
 obj-$(CONFIG_RFFE_ANTENNA) += antenna_cable/
 obj-y			+= log/
 obj-$(CONFIG_RFFE_ANTENNA) += antenna_board_gpio_match/
-obj-y			+= net/
