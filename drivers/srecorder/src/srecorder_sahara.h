@@ -9,9 +9,6 @@ extern "C" {
 #define SAHARA_BOOT_LOG_SIZE  0x00050000
 #define SAHARA_BOOT_LOG_SIZE_MAX  0x00050000
 
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-#define SAHARA_BOOT_SBL_LK_DELAY 20000
-#endif
 struct minidump_dumpid
 {
     uint32_t cpuid;
@@ -29,14 +26,6 @@ struct sahara_boot_log
 	struct minidump_dumpid dumpid;
 };
 
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-struct workqueue_sbl1_lk_log
-{
-    char *start_addr;
-    unsigned int size;
-    struct delayed_work  sbl1_lk_log_handle;
-};
-#endif
 void srecorder_save_kernel_log_addr(void);
 void minidump_set_dumpid(void);
 #ifdef __cplusplus

@@ -16,10 +16,6 @@
 #include "srecorder_log.h"
 #include "srecorder_sahara.h"
 
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-struct workqueue_sbl1_lk_log workqueue_get_log;
-#endif
-
 extern void get_random_bytes(void *buf, int nbytes);
 
 void srecorder_sahara_clear(struct sahara_boot_log *head)
@@ -34,52 +30,6 @@ void srecorder_sahara_clear(struct sahara_boot_log *head)
 //	head->sbl_log_size=0;
 //	head->lk_log_size=0;
 }
-
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-void lk_log_write_to_kernel(struct work_struct *work)
-{
-    struct workqueue_sbl1_lk_log *sbl1_lk_head=NULL;
-    char *buf = NULL;
-    unsigned int len=0;
-    unsigned int i=0;
-    char *p=NULL;
-    if(work==NULL)
-    {
-        return;
-    }
-    sbl1_lk_head=container_of(work,struct workqueue_sbl1_lk_log,sbl1_lk_log_handle);
-    buf = sbl1_lk_head->start_addr;
-    len=sbl1_lk_head->size;
-    p=buf;
-    if(p==NULL)
-    {
-        return;
-    }
-    if(len>=SAHARA_BOOT_LOG_SIZE_MAX)
-    {
-        printk(KERN_ERR "Srecorder sahara bBootloader log size error \n");
-        return;
-    }
-    printk(KERN_ERR "Bootloader log start : %lx\n",(long unsigned int)buf);
-    for(i=0;i<len;i++)
-    {
-        if(buf[i]=='\0')
-            buf[i]=' ';
-        if(buf[i]=='\n')
-        {
-            buf[i]='\0';
-            printk(KERN_ERR "Bootloader log: %s\n",p);
-            buf[i]='\n';
-            p=&buf[i+1];
-        }
-    }
-
-    printk(KERN_ERR "srecorder:i:%d   len:%d\n",i,len);
-    printk(KERN_ERR "Bootloader log end\n");
-
-}
-#endif
-
 
 /*===========================================================================
 **  Function :  minidump_get_kramdom
@@ -191,10 +141,6 @@ void srecorder_save_kernel_log_addr()
     void *head_addr = NULL;
     struct device_node *sahara_mem_dts_node = NULL;
     const u32 *sahara_mem_dts_basep = NULL;
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-	struct workqueue_struct *wq = NULL;
-	unsigned long delay_time = 0;
-#endif
 
     sahara_mem_dts_node = of_find_compatible_node(NULL, NULL, "sahara_mem");
     if (sahara_mem_dts_node == 0)
@@ -232,15 +178,6 @@ void srecorder_save_kernel_log_addr()
     boot_log->kernel_log_size = (1 << CONFIG_LOG_BUF_SHIFT);
 #else
     boot_log->kernel_log_size = 0;
-#endif
-#ifdef CONFIG_HUAWEI_KERNEL_DEBUG
-    workqueue_get_log.start_addr=(char *)(head_addr+sizeof(struct sahara_boot_log));
-    workqueue_get_log.size=(unsigned int)(boot_log->lk_log_size+boot_log->sbl_log_size);
-    wq=create_workqueue("srecorder_sbl1_lk_log");
-    delay_time = msecs_to_jiffies(SAHARA_BOOT_SBL_LK_DELAY);
-    INIT_DELAYED_WORK(&(workqueue_get_log.sbl1_lk_log_handle),lk_log_write_to_kernel);
-    queue_delayed_work(wq,&(workqueue_get_log.sbl1_lk_log_handle), delay_time);
-//	lk_log_write_to_kernel2((char *)(boot_log2+sizeof(struct sahara_boot_log)),(unsigned int)(boot_log2->lk_log_size+boot_log2->sbl_log_size));
 #endif
     SRECORDER_PRINTK("srecorder_sahara get dts addr %lx\n",(long unsigned int)head_addr);
     SRECORDER_PRINTK("srecorder_sahara sbl1_log_addr:%x sbl1_log_size:%x \n",boot_log->sbl_log_addr,boot_log->sbl_log_size);
