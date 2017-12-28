@@ -2939,11 +2939,6 @@ static struct mmc_cmdq_req *mmc_blk_cmdq_rw_prep(
 		 cmdq_rq, cmdq_rq->blk_addr,
 		 (cmdq_rq->cmdq_req_flags & DIR) ? 1 : 0);
 
-#ifdef CONFIG_HUAWEI_IO_TRACING
-	trace_mmc_blk_cmdq_rw_start(cmdq_rq->cmdq_req_flags, cmdq_rq->tag, cmdq_rq->blk_addr,
-	   (cmdq_rq->data.blocks * cmdq_rq->data.blksz));
-#endif
-
 	return &mqrq->cmdq_req;
 }
 
@@ -3370,11 +3365,6 @@ void mmc_blk_cmdq_complete_rq(struct request *rq)
 		blk_end_request_all(rq, err);
 		goto out;
 	}
-
-#ifdef CONFIG_HUAWEI_IO_TRACING
-	trace_mmc_blk_cmdq_rw_end(cmdq_req->cmdq_req_flags, cmdq_req->tag, cmdq_req->blk_addr, 
-	    cmdq_req->data.bytes_xfered);
-#endif
  
 	blk_end_request(rq, err, cmdq_req->data.bytes_xfered);
 
