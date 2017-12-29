@@ -32,7 +32,6 @@
 #ifdef CONFIG_HUAWEI_RESET_DETECT
 #include <linux/huawei_reset_detect.h>
 #endif
-#include <chipset_common/bfmr/bfm/chipsets/qcom/bfm_qcom.h>
 
 #define MODULE_NAME "msm_watchdog"
 #define WDT0_ACCSCSSNBARK_INT 0
@@ -429,7 +428,6 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 	unsigned long nanosec_rem;
 	unsigned long long t = sched_clock();
 
-	qcom_set_boot_fail_flag(KERNEL_AP_WDT);
 	pr_err("Boot_monitor detect error:KERNEL_AP_WDT\n");
 	nanosec_rem = do_div(t, 1000000000);
 	printk(KERN_INFO "Watchdog bark! Now = %lu.%06lu\n", (unsigned long) t,
@@ -734,9 +732,6 @@ static int msm_watchdog_probe(struct platform_device *pdev)
 		goto err;
 	}
 	init_watchdog_data(wdog_dd);
-	if(check_bootfail_inject(KERNEL_AP_WDT))
-		msm_trigger_wdog_bark();
-
 	return 0;
 err:
 	kzfree(wdog_dd);
