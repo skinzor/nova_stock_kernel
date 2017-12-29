@@ -183,9 +183,6 @@ typedef struct
     unsigned int update_flag[2];           /* sd auto update flag */
     unsigned int pwrkpd_reset;
     unsigned int reserved;                  /* reserved for filling */
-	/*AR0005AFIC yuanshuai 20160919 begin */
-	unsigned int sbl1_boottime;
-	/*AR0005AFIC yuanshuai 20160919 begin */
 }smem_exten_huawei_paramater;
 
 #ifdef CONFIG_MSM_SMEM
