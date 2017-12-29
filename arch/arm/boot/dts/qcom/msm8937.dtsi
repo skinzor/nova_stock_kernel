@@ -2072,14 +2072,6 @@
 	status = "okay";
 };
 
-/*AR0005AFIC yuanshuai 20160919 begin */
-/{
-         huawei_boot_time {
-                 compatible = "huawei,hw_boot_time_info";
-         };
-};
-/*AR0005AFIC yuanshuai 20160919 end */
-
 /* GPU overrides */
 &msm_gpu {
 
