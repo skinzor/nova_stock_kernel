@@ -2796,7 +2796,7 @@ wcnss_trigger_config(struct platform_device *pdev)
 	int is_pronto_v3;
 	int pil_retry = 0;
 	int has_pronto_hw = of_property_read_bool(pdev->dev.of_node,
-							"qcom,has-pronto-hw")
+							"qcom,has-pronto-hw");
 
 	is_pronto_vadc = of_property_read_bool(pdev->dev.of_node,
 					       "qcom,is-pronto-vadc");
