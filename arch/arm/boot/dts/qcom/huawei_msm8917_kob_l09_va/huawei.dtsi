@@ -20,7 +20,6 @@
 
 /*belong to the wireless component group, according to the order of wifi bt fm audio begin*/
 #include "huawei-audio.dtsi"
-#include "huawei-wifi.dtsi"
 #include "huawei-bt.dtsi"
 /*belong to the wireless component group, according to the order of wifi bt fm audio end*/
 
