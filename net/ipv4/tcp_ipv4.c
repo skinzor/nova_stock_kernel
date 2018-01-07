@@ -85,9 +85,6 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 
-#ifdef CONFIG_HW_WIFIPRO
-#include "wifipro_tcp_monitor.h"
-#endif
 #ifdef CONFIG_HW_WIFI
 #include "wifi_tcp_statistics.h"
 #endif
@@ -1685,10 +1682,6 @@ process:
 
 #ifdef CONFIG_HW_WIFI
 	wifi_IncrRecvSegs(sk, 1);
-#endif
-
-#ifdef CONFIG_HW_WIFIPRO
-	wifipro_update_tcp_statistics(WIFIPRO_TCP_MIB_INSEGS, skb, sk);
 #endif
 
 	if (!sock_owned_by_user(sk)) {

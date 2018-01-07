@@ -42,9 +42,6 @@
 #include <linux/gfp.h>
 #include <linux/module.h>
 
-#ifdef CONFIG_HW_WIFIPRO
-#include "wifipro_tcp_monitor.h"
-#endif
 #ifdef  CONFIG_HW_WIFI
 #include "wifi_tcp_statistics.h"
 #endif
@@ -3125,9 +3122,6 @@ int tcp_connect(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
 	int err;
-#ifdef CONFIG_HW_WIFIPRO
-	int wifipro_dev_max_len = 0;
-#endif
 
 	tcp_connect_init(sk);
 
@@ -3161,14 +3155,6 @@ int tcp_connect(struct sock *sk)
 	/* Timer for repeating the SYN until an answer. */
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 				  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
-#ifdef CONFIG_HW_WIFIPRO
-	if (buff->dev) {
-	    wifipro_dev_max_len = strnlen(buff->dev->name, IFNAMSIZ-1);
-	    strncpy(buff->sk->wifipro_dev_name, buff->dev->name, wifipro_dev_max_len);
-	    buff->sk->wifipro_dev_name[wifipro_dev_max_len] = '\0';
-	    WIFIPRO_DEBUG("wifipro_dev_name is %s", buff->dev->name);
-	}
-#endif
 
 	return 0;
 }

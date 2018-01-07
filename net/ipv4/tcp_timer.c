@@ -22,9 +22,6 @@
 #include <linux/gfp.h>
 #include <net/tcp.h>
 
-#ifdef CONFIG_HW_WIFIPRO
-#include "wifipro_tcp_monitor.h"
-#endif
 #ifdef CONFIG_HW_WIFI
  #include "wifi_tcp_statistics.h"
 #endif
@@ -493,11 +490,6 @@ void tcp_retransmit_timer(struct sock *sk)
 	 */
 	icsk->icsk_backoff++;
 	icsk->icsk_retransmits++;
-#ifdef CONFIG_HW_WIFIPRO
-    if (is_wifipro_on) {
-        wifipro_handle_retrans(sk, icsk);
-    }
-#endif
 #ifdef CONFIG_HW_WIFI
 	wifi_IncrReSendSegs(sk, 1);
 #endif
