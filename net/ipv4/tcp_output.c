@@ -42,10 +42,6 @@
 #include <linux/gfp.h>
 #include <linux/module.h>
 
-#ifdef  CONFIG_HW_WIFI
-#include "wifi_tcp_statistics.h"
-#endif
-
 /* People can turn this off for buggy TCP's found in printers etc. */
 int sysctl_tcp_retrans_collapse __read_mostly = 1;
 
@@ -1002,9 +998,6 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
 		TCP_ADD_STATS(sock_net(sk), TCP_MIB_OUTSEGS,
 			      tcp_skb_pcount(skb));
-#ifdef CONFIG_HW_WIFI
-	wifi_IncrSendSegs(sk, tcp_skb_pcount(skb));
-#endif
 
 	/* OK, its time to fill skb_shinfo(skb)->gso_segs */
 	skb_shinfo(skb)->gso_segs = tcp_skb_pcount(skb);
@@ -2811,9 +2804,6 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTFAILED);
 
 	TCP_INC_STATS(sock_net(sk), TCP_MIB_OUTRSTS);
-#ifdef CONFIG_HW_WIFI
-	wifi_IncrRstSegs(sk, 1);
-#endif
 }
 
 /* Send a crossed SYN-ACK during socket establishment.
@@ -2923,9 +2913,6 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	tcp_options_write((__be32 *)(th + 1), tp, &opts);
 	th->doff = (tcp_header_size >> 2);
 	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_OUTSEGS);
-#ifdef CONFIG_HW_WIFI
-	wifi_IncrSendSegs(sk, tcp_skb_pcount(skb));
-#endif
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Okay, we have all we need - do the md5 hash if needed */

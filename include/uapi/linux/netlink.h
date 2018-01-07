@@ -27,9 +27,6 @@
 #define NETLINK_RDMA		20
 #define NETLINK_CRYPTO		21	/* Crypto layer */
 #define NETLINK_SOCKEV		22	/* Socket Administrative Events */
-#ifdef CONFIG_HW_WIFI
-#define NETLINK_WIFI_EVENT_NL 25
-#endif
 
 #define NETLINK_INET_DIAG	NETLINK_SOCK_DIAG
 

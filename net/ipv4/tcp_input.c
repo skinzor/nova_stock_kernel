@@ -75,9 +75,6 @@
 #include <linux/ipsec.h>
 #include <asm/unaligned.h>
 #include <linux/errqueue.h>
-#ifdef  CONFIG_HW_WIFI
-#include "wifi_tcp_statistics.h"
-#endif
 
 int sysctl_tcp_timestamps __read_mostly = 1;
 int sysctl_tcp_window_scaling __read_mostly = 1;
@@ -703,9 +700,6 @@ static void tcp_rtt_estimator(struct sock *sk, long mrtt_us)
 	 * does not matter how to _calculate_ it. Seems, it was trap
 	 * that VJ failed to avoid. 8)
 	 */
-#ifdef CONFIG_HW_WIFI
-	wifi_update_rtt(rtt_jiffies, sk);
-#endif
 
 	if (srtt != 0) {
 		m -= (srtt >> 3);	/* m is now error in rtt est */
@@ -4013,17 +4007,6 @@ static void tcp_send_dupack(struct sock *sk, const struct sk_buff *skb)
 			tcp_dsack_set(sk, TCP_SKB_CB(skb)->seq, end_seq);
 		}
 	}
-#ifdef CONFIG_HW_WIFI
-	if ( tp->dack_rcv_nxt == tp->rcv_nxt ) {
-		tp->dack_seq_num++;
-		if ( tp->dack_seq_num == 3 ) {
-			wifi_IncrRcvDupAcksSegs(sk, 1);
-		}
-	} else {
-		tp->dack_rcv_nxt  = tp->rcv_nxt;
-		tp->dack_seq_num = 0;
-	}
-#endif
 	tcp_send_ack(sk);
 }
 
