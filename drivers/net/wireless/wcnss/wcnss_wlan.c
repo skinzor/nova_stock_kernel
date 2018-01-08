@@ -1188,7 +1188,6 @@ void wcnss_log_debug_regs_on_bite(void)
 			pr_err("clock frequency is zero, cannot access PMU or other registers\n");
 			wcnss_log_iris_regs();
 		}
-		WARN_ON(1);
 		clk_disable_unprepare(measure);
 	}
 }
@@ -2209,9 +2208,8 @@ exit:
 }
 
 
-static void wcnssctrl_rx_handler(struct work_struct *worker)
+static void wcnss_process_smd_msg(int len)
 {
-	int len = 0;
 	int rc = 0;
 	unsigned char buf[sizeof(struct wcnss_version)];
 	unsigned char build[WCNSS_MAX_BUILD_VER_LEN+1];
@@ -2220,17 +2218,6 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 	struct wcnss_version *pversion;
 	int hw_type;
 	unsigned char fw_status = 0;
-
-	len = smd_read_avail(penv->smd_ch);
-	if (len > WCNSS_MAX_FRAME_SIZE) {
-		pr_err("wcnss: frame larger than the allowed size\n");
-		smd_read(penv->smd_ch, NULL, len);
-		return;
-	}
-	if (len < sizeof(struct smd_msg_hdr)) {
-		pr_err("wcnss: incomplete header available len = %d\n", len);
-		return;
-	}
 
 	rc = smd_read(penv->smd_ch, buf, sizeof(struct smd_msg_hdr));
 	if (rc < sizeof(struct smd_msg_hdr)) {
@@ -2341,6 +2328,33 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 	return;
 }
 
+static void wcnssctrl_rx_handler(struct work_struct *worker)
+{
+	int len;
+
+	while (1) {
+		len = smd_read_avail(penv->smd_ch);
+		if (0 == len) {
+			pr_debug("wcnss: No more data to be read\n");
+			return;
+		}
+
+		if (len > WCNSS_MAX_FRAME_SIZE) {
+			pr_err("wcnss: frame larger than the allowed size\n");
+			smd_read(penv->smd_ch, NULL, len);
+			return;
+		}
+
+		if (len < sizeof(struct smd_msg_hdr)) {
+			pr_err("wcnss: incomplete header available len = %d\n",
+			       len);
+			return;
+		}
+
+		wcnss_process_smd_msg(len);
+	}
+}
+
 static void wcnss_send_version_req(struct work_struct *worker)
 {
 	struct smd_msg_hdr smd_msg;
@@ -2424,6 +2438,8 @@ static void wcnss_nvbin_dnld(void)
 	struct device *dev = &penv->pdev->dev;
 
 	down_read(&wcnss_pm_sem);
+
+    ret = request_firmware(&nv, NVBIN_FILE, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
 		pr_err("wcnss: %s: request_firmware failed for %s (ret = %d)\n",
