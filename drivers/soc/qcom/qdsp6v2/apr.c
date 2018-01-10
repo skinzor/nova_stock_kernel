@@ -291,8 +291,6 @@ int apr_send_pkt(void *handle, uint32_t *buf)
 	if ((svc->dest_id == APR_DEST_QDSP6) &&
 	    (apr_get_q6_state() != APR_SUBSYS_LOADED)) {
 		pr_err("%s: Still dsp is not Up\n", __func__);
-		audio_dsm_report_num(DSM_AUDIO_MODEM_CRASH_ERROR_NO,
-								DSM_AUDIO_MESG_MODEM_STILL_NOTUP);
 		return -ENETRESET;
 	} else if ((svc->dest_id == APR_DEST_MODEM) &&
 		   (apr_get_modem_state() == APR_SUBSYS_DOWN)) {

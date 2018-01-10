@@ -21,9 +21,6 @@
 /* Logging macro */
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
-#ifdef CONFIG_HUAWEI_DSM
-int camera_is_in_probe = 1;
-#endif
 
 static struct msm_sensor_init_t *s_init;
 static struct v4l2_file_operations msm_sensor_init_v4l2_subdev_fops;
@@ -83,9 +80,6 @@ static int32_t msm_sensor_driver_cmd(struct msm_sensor_init_t *s_init,
 
 	switch (cfg->cfgtype) {
 	case CFG_SINIT_PROBE:
-#ifdef CONFIG_HUAWEI_DSM
-		camera_is_in_probe = 1;
-#endif
 		mutex_lock(&s_init->imutex);
 		s_init->module_init_status = 0;
 		rc = msm_sensor_driver_probe(cfg->cfg.setting,
@@ -99,9 +93,6 @@ static int32_t msm_sensor_driver_cmd(struct msm_sensor_init_t *s_init,
 	case CFG_SINIT_PROBE_DONE:
 		s_init->module_init_status = 1;
 		wake_up(&s_init->state_wait);
-#ifdef CONFIG_HUAWEI_DSM
-		camera_is_in_probe = 0;
-#endif
 		break;
 
 	case CFG_SINIT_PROBE_WAIT_DONE:

@@ -1937,10 +1937,6 @@ static int mdss_mdp_cmd_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
 				"dsi1_ctrl", "dsi1_phy", "vbif", "vbif_nrt",
 				"dbg_bus", "vbif_dbg_bus", "panic");
 			mdss_fb_report_panel_dead(ctl->mfd);
-#ifdef CONFIG_HUAWEI_DSM
-			/* report pingpong dsm error */
-			lcd_report_dsm_err(DSM_LCD_MDSS_PINGPONG_ERROR_NO,rc,0);
-#endif
 		}
 		ctx->pp_timeout_report_cnt++;
 		rc = -EPERM;

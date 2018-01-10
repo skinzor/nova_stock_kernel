@@ -46,9 +46,6 @@
 #endif
 #include <linux/pm_runtime.h>
 
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
 #include "synaptics_dsx_esd.h"
 
 #define MAX_F12_TOUCH_WIDTH 255
@@ -206,49 +203,6 @@ const char * get_ic_name(unsigned int ic_type)
 	
 	return NULL;
 }
-
-#ifdef CONFIG_HUAWEI_DSM
-ssize_t synaptics_dsm_record_basic_err_info( void );
-
-/* force dump some tp infomation */
-int dump (int type, void *buff, int size)
-{
-	int used_size = 0;
-	struct dsm_client *tp_client;
-
-	/* get tp dsm client */
-	tp_client = tp_dsm_get_client();
-
-	/* save tp basice infomation */
-	used_size = synaptics_dsm_record_basic_err_info();
-
-	if( used_size > 0 )
-	{
-		tp_log_debug("%s: force dump tp error! \n",__func__);
-		snprintf( buff, tp_client->used_size, tp_client->dump_buff );
-	}
-
-	return tp_client->used_size;
-
-}
-
-/* add tp dump_func */
-struct dsm_client_ops tp_ops={
-	.poll_state = NULL,
-	.dump_func = dump,
-};
-
-/* dsm client for tp */
-struct dsm_dev dsm_i2c = {
-	.name = "dsm_i2c_bus",				// dsm client name
-	.fops = &tp_ops,					// options
-	.buff_size = TP_RADAR_BUF_MAX,		// buffer size
-};
-struct dsm_client *tp_dclient=NULL;
-/* might not use, init here */
-/* move this var out of CONFIG_HUAWEI_DSM */
-static struct synaptics_dsx_platform_data *tp_data;
-#endif/*CONFIG_HUAWEI_DSM*/
 
 static struct regulator *syn_power_vbus = NULL;
 static struct regulator *syn_power_vdd = NULL;
@@ -626,176 +580,6 @@ static struct device_attribute attrs[] = {
 			synaptics_easy_wakeup_supported_gestures_show,
 			synaptics_rmi4_store_error),
 };
-
-/* get tp dsm client handle */
-#ifdef CONFIG_HUAWEI_DSM
-struct dsm_client* tp_dsm_get_client(void)
-{
-	return tp_dclient;
-}
-
-/* remove the parameter */
-/* TP basic infomation:  power, irq, reset, i2c gpio error */
-ssize_t synaptics_dsm_record_basic_err_info( void )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-
-	tp_log_debug("%s: entry!\n", __func__);
-
-	/* power status,include mode, is enable, voltage */
-	if(syn_power_vbus && syn_power_vdd)
-	{
-		tp_log_debug("%s: record power!\n", __func__);
-		size =dsm_client_record(tp_dclient, 
-					"[vbus power] mode:%d, enable:%d, vol:%d\n"
-					"[vdd power]  mode:%d, enable:%d, vol:%d\n",
-					regulator_get_mode(syn_power_vbus), 
-					regulator_is_enabled(syn_power_vbus),
-					regulator_get_voltage(syn_power_vbus),
-					regulator_get_mode(syn_power_vdd),
-					regulator_is_enabled(syn_power_vdd),
-					regulator_get_voltage(syn_power_vdd));
-		total_size += size;
-		tp_log_err("[vbus power] mode:%d, enable:%d, vol:%d\n"
-					"[vdd power]  mode:%d, enable:%d, vol:%d\n",
-					regulator_get_mode(syn_power_vbus), 
-					regulator_is_enabled(syn_power_vbus),
-					regulator_get_voltage(syn_power_vbus),
-					regulator_get_mode(syn_power_vdd),
-					regulator_is_enabled(syn_power_vdd),
-					regulator_get_voltage(syn_power_vdd));
-	}
-	
-	/* irq reset gpio status */
-	tp_log_debug("%s: record irq and reset gpio!\n", __func__);
-	size =dsm_client_record(tp_dclient, 
-				"[irq gpio]   num:%d, irq gpio status:%d\n"
-				"[reset gpio] num:%d, reset gpio status:%d\n",
-				tp_data->irq_gpio, gpio_get_value(tp_data->irq_gpio),
-				tp_data->reset_gpio, gpio_get_value(tp_data->reset_gpio) );
-	total_size += size;
-	tp_log_err("[irq gpio]   num:%d, irq gpio status:%d\n"
-				"[reset gpio] num:%d, reset gpio status:%d\n",
-				tp_data->irq_gpio, gpio_get_value(tp_data->irq_gpio),
-				tp_data->reset_gpio, gpio_get_value(tp_data->reset_gpio) );
-	/* i2c gpio status */
-	tp_log_debug("%s: record i2c gpio!\n", __func__);
-	size = dsm_client_record(tp_dclient, 
-				"i2c_data gpio num:%d, i2c_data gpio status:%d\n	\
-				i2c_clk gpio num:%d, i2c_clk gpio status:%d\n",
-				TP_I2C_GPIO_DATA_8916, gpio_get_value(TP_I2C_GPIO_DATA_8916+TP_GPIO_BASE_8916),
-				TP_I2C_GPIO_CLK_8916, gpio_get_value(TP_I2C_GPIO_CLK_8916+TP_GPIO_BASE_8916) );
-	total_size += size;
-	
-	tp_log_err("i2c_data gpio num:%d, i2c_data gpio status:%d\n	\
-				i2c_clk gpio num:%d, i2c_clk gpio status:%d\n",
-				TP_I2C_GPIO_DATA_8916, gpio_get_value(TP_I2C_GPIO_DATA_8916+TP_GPIO_BASE_8916),
-				TP_I2C_GPIO_CLK_8916, gpio_get_value(TP_I2C_GPIO_CLK_8916+TP_GPIO_BASE_8916));
-	return total_size;
-
-}
-
-/* i2c error infomation: err number, register infomation */
-ssize_t synaptics_dsm_record_i2c_err_info( int err_numb )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-
-	tp_log_err("%s: entry!\n", __func__);
-	
-	/* err number */
-	size =dsm_client_record(tp_dclient, "i2c err number:%d\n", err_numb );
-	total_size += size;
-
-	/* register infomation and other i2c infomation */
-
-	return total_size;
-
-}
-
-/* tp report err according to err type */
-int synp_tp_report_dsm_err( int type, int err_numb )
-{
-
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	tp_log_err("%s: entry! type:%d\n", __func__, type);
-
-	if( NULL == tp_dclient )
-	{
-		tp_log_err("%s: there is not tp_dclient!\n", __func__);
-		return -1;
-	}
-
-	/* try to get permission to use the buffer */
-	if(dsm_client_ocuppy(tp_dclient))
-	{
-		/* buffer is busy */
-		tp_log_err("%s: buffer is busy!\n", __func__);
-		return -1;
-	}
-
-	/* tp report err according to err type */
-	switch(type)
-	{
-		case DSM_TP_I2C_RW_ERROR_NO:
-			/* report tp basic infomation */
-			synaptics_dsm_record_basic_err_info();
-			/* report i2c infomation */
-			synaptics_dsm_record_i2c_err_info(err_numb);
-			break;
-		case DSM_TP_FWUPDATE_ERROR_NO:
-			/* report tp basic infomation */
-			synaptics_dsm_record_basic_err_info();
-			/* report fw infomation */
-			synaptics_dsm_record_fw_err_info(err_numb);
-			break;
-		case DSM_TP_ESD_ERROR_NO:
-			/* report tp basic infomation */
-			synaptics_dsm_record_basic_err_info();
-			/* report esd infomation */
-			synaptics_dsm_record_esd_err_info(err_numb);
-			break;
-
-		case DSM_TP_F34_PDT_ERROR_NO:
-			/* report tp basic infomation */
-			//synaptics_dsm_record_basic_err_info();
-			/* read pdt infomation */
-			//synaptics_dsm_f34_pdt_err_info(err_numb);
-			break;
-
-		case DSM_TP_F54_PDT_ERROR_NO:
-			/* report tp basic infomation */
-			synaptics_dsm_record_basic_err_info();
-			/* read pdt infomation */
-			synaptics_dsm_f54_pdt_err_info(err_numb);
-			break;
-		case DSM_TP_PDT_PROPS_ERROR_NO:
-			/* report tp basic infomation */
-			synaptics_dsm_record_basic_err_info();
-			/* read pdt props infomation */
-			synaptics_dsm_fwu_init_pdt_props_err_info(err_numb);
-			break;
-
-		case DSM_TP_F34_READ_QUERIES_ERROR_NO:
-			/* report tp basic infomation */
-			//synaptics_dsm_record_basic_err_info();
-			/* f34 read queries infomation */
-			//synaptics_dsm_f34_read_queries_err_info(err_numb);
-			break;
-		default:
-			break;
-	}
-
-	dsm_client_notify(tp_dclient, type);
-
-	return 0;
-
-}
-#endif/*CONFIG_HUAWEI_DSM*/
 
 long get_ic_type_by_string(const char * product_id_ptr)
 {
@@ -3260,16 +3044,6 @@ static int synaptics_rmi4_i2c_read(struct synaptics_rmi4_data *rmi4_data,
 exit:
 	mutex_unlock(&(rmi4_data->rmi4_io_ctrl_mutex));
 
-#ifdef CONFIG_HUAWEI_DSM
-	if(retval<0) {
-		if ((SYNAPTICS_S4322 == rmi4_data->board->ic_type) && (rmi4_data->fb_callback_suspend_state)) {
-			tp_log_info("tp is suspend, i2c read is not report dsm\n");
-			return retval;
-		}
-		synp_tp_report_dsm_err(DSM_TP_I2C_RW_ERROR_NO, retval);
-	}
-#endif/*CONFIG_HUAWEI_DSM*/
-
 	return retval;
 }
  /**
@@ -3336,16 +3110,6 @@ exit:
 	mutex_unlock(&(rmi4_data->rmi4_io_ctrl_mutex));
 
 /* if i2c write err, report err */
-#ifdef CONFIG_HUAWEI_DSM
-	if(retval<0) {
-		if ((SYNAPTICS_S4322 == rmi4_data->board->ic_type) && (rmi4_data->fb_callback_suspend_state)) {
-			tp_log_info("tp is suspend, i2c write is not report dsm\n");
-			return retval;
-		}
-		synp_tp_report_dsm_err( DSM_TP_I2C_RW_ERROR_NO, retval);
-	}
-#endif/*CONFIG_HUAWEI_DSM*/
-
 	return retval;
 }
 
@@ -7527,9 +7291,6 @@ static int synaptics_rmi4_probe(struct i2c_client *client,
 	INIT_WORK(&rmi4_data->work, synaptics_rmi4_sensor_report);
 #endif /*USE_IRQ_THREAD*/
 	/* save platform data */
-#ifdef CONFIG_HUAWEI_DSM
-	tp_data = platform_data;
-#endif/*CONFIG_HUAWEI_DSM*/
 
 	rmi4_data->i2c_client = client;
 	rmi4_data->current_page = MASK_8BIT;
@@ -7573,13 +7334,6 @@ static int synaptics_rmi4_probe(struct i2c_client *client,
 		goto err_set_input_dev;
 	}
 
-	/* registe dsm client */
-#ifdef CONFIG_HUAWEI_DSM
-	if (!tp_dclient) {
-		dsm_i2c.fops->dump_func = dump;
-		tp_dclient = dsm_register_client(&dsm_i2c);
-	}
-#endif/*CONFIG_HUAWEI_DSM*/
 #if !defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_FB)
 	retval = configure_sleep(rmi4_data);
 	if(retval) {

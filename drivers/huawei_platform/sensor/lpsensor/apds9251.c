@@ -41,11 +41,6 @@
 #endif
 #include <misc/app_info.h>
 #include <linux/debugfs.h>
-
-#ifdef CONFIG_HUAWEI_DSM
-#include 	<dsm/dsm_pub.h>
-#define CLIENT_NAME_ALS_APDS9251		"dsm_als_apds9251"
-#endif
 #include <huawei_platform/touchscreen/hw_tp_common.h>
 
 #define WHITE_TP		0xE1
@@ -131,20 +126,6 @@ module_param_named(rgb_apds9251_debug, rgb_apds9251_debug_mask, int, S_IRUGO | S
         printk(KERN_ERR x);\
     } while (0)
 
-#ifdef CONFIG_HUAWEI_DSM
- struct als_test_excep{
-	int i2c_scl_val;		/* when i2c transfer err, read the gpio value*/
-	int i2c_sda_val;
-	int vdd_mv;
-	int vdd_status;
-	int vio_mv;
-	int vio_status;
-	int i2c_err_num;
-	int excep_num;
-	char *reg_buf;
-};
-#endif
-
 static const char *data_array_name[MODULE_MANUFACTURE_NUMBER] = {
 	[0] = "apds9251,cal_data0",
 	[1] = "apds9251,cal_data1",
@@ -213,9 +194,6 @@ struct rgb_apds9251_data {
 	struct rgb_apds9251_rgb_data rgb_data;
 	int irq;
 	struct hrtimer timer;
-#ifdef CONFIG_HUAWEI_DSM
-	struct als_test_excep als_test_exception;
-#endif
 	unsigned int enable;
 	unsigned int irq_control;
 	unsigned int ailt;
@@ -262,165 +240,6 @@ static int rgb_apds9251_init_client(struct i2c_client *client);
 /*we use the unified the function for i2c write and read operation*/
 static int apds_als_polling_count=0;
 
-#ifdef CONFIG_HUAWEI_DSM
-
-static struct dsm_client *apds9251_als_dclient = NULL;
-
-/* dsm client for als sensor */
-static struct dsm_dev dsm_als_apds9251 = {
-	.name 		= CLIENT_NAME_ALS_APDS9251,		// dsm client name
-	.fops 		= NULL,						      // options
-	.buff_size 	= DSM_SENSOR_BUF_MAX,			// buffer size
-};
-
-static int apds9251_dsm_report_err(int errno,struct rgb_apds9251_data *data)
-{
-	int size = 0;
-	struct als_test_excep *excep = &data->als_test_exception;
-
-	if(dsm_client_ocuppy(apds9251_als_dclient)){
-		/* buffer is busy */
-		APDS9251_ERR("%s: buffer is busy!, errno = %d\n", __func__,errno);
-		return -EBUSY;
-	}
-
-	APDS9251_INFO("dsm error, errno = %d \n", errno);
-
-	size = dsm_client_record(apds9251_als_dclient,
-				"i2c_scl_val=%d,i2c_sda_val=%d,vdd = %d, vdd_status = %d\n"
-				"vio=%d, vio_status=%d, excep_num=%d, i2c_err_num=%d\n"
-				,excep->i2c_scl_val,excep->i2c_sda_val,excep->vdd_mv,excep->vdd_status
-				,excep->vio_mv,excep->vio_status,excep->excep_num,excep->i2c_err_num);
-
-	/*if device is not probe successfully or client is null, don't notify dsm work func*/
-	if(data->device_exist == false || apds9251_als_dclient == NULL){
-		return -ENODEV;
-	}
-
-	dsm_client_notify(apds9251_als_dclient, errno);
-
-
-	return size;
-}
-
-static int apds9251_i2c_exception_status(struct rgb_apds9251_data *data)
-{
-	int ret = 0;
-	/* print pm status and i2c gpio status*/
-	struct als_test_excep *excep = &data->als_test_exception;
-
-	if (data->vdd == NULL) {
-		return -ENXIO;
-	}
-
-	if (data->vio == NULL) {
-		return -ENXIO;
-	}
-
-	/* read i2c_sda i2c_scl gpio value*/
-	mutex_lock(&data->update_lock);
-	excep->i2c_scl_val = gpio_get_value(data->platform_data->i2c_scl_gpio);
-	excep->i2c_sda_val = gpio_get_value(data->platform_data->i2c_sda_gpio);
-	mutex_unlock(&data->update_lock);
-
-	/* get regulator's status*/
-	excep->vdd_status = regulator_is_enabled(data->vdd);
-	if(excep->vdd_status < 0){
-		APDS9251_ERR("%s,line %d:regulator_is_enabled vdd failed\n",__func__,__LINE__);
-	}
-	excep->vio_status = regulator_is_enabled(data->vio);
-	if(excep->vio_status < 0){
-		APDS9251_ERR("%s,line %d:regulator_is_enabled vio failed\n",__func__,__LINE__);
-	}
-
-	/* get regulator's value*/
-	excep->vdd_mv = regulator_get_voltage(data->vdd)/1000;
-	if(excep->vdd_mv < 0){
-		APDS9251_ERR("%s,line %d:regulator_get_voltage vdd failed\n",__func__,__LINE__);
-	}
-
-	excep->vio_mv = regulator_get_voltage(data->vio)/1000;
-	if(excep->vio_mv < 0){
-		APDS9251_ERR("%s,line %d:regulator_get_voltage vio failed\n",__func__,__LINE__);
-	}
-
-	/* report i2c err info */
-	ret = apds9251_dsm_report_err(DSM_LPS_I2C_ERROR,data);
-	if(ret <= 0){
-		APDS9251_ERR("%s:probe did not succeed or apds9251_als_dclient is NULL",__func__);
-		return ret;
-	}
-
-	APDS9251_INFO("%s,line %d:i2c_scl_val=%d,i2c_sda_val=%d,vdd = %d, vdd_status = %d\n"
-			"vio=%d, vio_status=%d, excep_num=%d, i2c_err_num=%d",__func__,__LINE__
-			,excep->i2c_scl_val,excep->i2c_sda_val,excep->vdd_mv,excep->vdd_status
-			,excep->vio_mv,excep->vio_status,excep->excep_num,excep->i2c_err_num);
-
-	excep->i2c_err_num = 0;
-
-	return ret;
-
-}
-
-static void apds9251_report_i2c_info(struct rgb_apds9251_data* data, int err)
-{
-	int ret = 0;
-	data->als_test_exception.i2c_err_num = err;
-	ret = apds9251_i2c_exception_status(data);
-	if(ret <= 0){
-		APDS9251_ERR("%s:ret = %d,called function apds9251_i2c_exception_status failed\n",__func__,ret);
-	}
-}
-
-static int apds9251_dsm_init(struct rgb_apds9251_data *data)
-{
-	apds9251_als_dclient = dsm_register_client(&dsm_als_apds9251);
-	if (!apds9251_als_dclient) {
-		APDS9251_ERR("%s@%d register dsm apds9521_als_dclient failed!\n",__func__,__LINE__);
-		return -ENOMEM;
-	}
-	/*for dmd*/
-	//apds9251_als_dclient->driver_data = data;
-
-	data->als_test_exception.reg_buf = kzalloc(512, GFP_KERNEL);
-	if(!data->als_test_exception.reg_buf){
-		APDS9251_ERR("%s@%d alloc dsm reg_buf failed!\n",__func__,__LINE__);
-		dsm_unregister_client(apds9251_als_dclient,&dsm_als_apds9251);
-		return -ENOMEM;
-	}
-
-	return 0;
-
-}
-
-/*
-*  test data or i2c error interface for device monitor
-*/
-static ssize_t apds9251_sysfs_dsm_test(struct device *dev, struct device_attribute *attr,
-						const char *buf, size_t count)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct rgb_apds9251_data *data = i2c_get_clientdata(client);
-	long mode;
-	int ret = 0;
-
-	if (strict_strtol(buf, 10, &mode))
-			return -EINVAL;
-
-
-	if(DSM_LPS_I2C_ERROR == mode){
-		ret = apds9251_i2c_exception_status(data);
-	}
-	else{
-		APDS9251_ERR("%s unsupport err_no = %ld \n", __func__, mode);
-	}
-
-	return ret;
-}
-static DEVICE_ATTR(dsm_excep,S_IWUSR|S_IWGRP, NULL, apds9251_sysfs_dsm_test);
-#endif
-
-
 static int rgb_apds9251_i2c_write(struct i2c_client*client, u8 reg, u16 value,bool flag)
 {
 	int err,loop;
@@ -451,11 +270,6 @@ static int rgb_apds9251_i2c_write(struct i2c_client*client, u8 reg, u16 value,bo
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		APDS9251_ERR("%s,line %d:attention:i2c write err = %d\n",__func__,__LINE__,err);
-#ifdef CONFIG_HUAWEI_DSM
-		if(data->device_exist){
-				apds9251_report_i2c_info(data,err);
-		}
-#endif
 	}
 
 	return err;
@@ -491,11 +305,6 @@ static int rgb_apds9251_i2c_read(struct i2c_client*client, u8 reg,bool flag)
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		APDS9251_ERR("%s,line %d:attention: i2c read err = %d,reg=0x%x\n",__func__,__LINE__,err,reg);
-#ifdef CONFIG_HUAWEI_DSM
-		if(data->device_exist){
-				apds9251_report_i2c_info(data,err);
-		}
-#endif
 	}
 	
 	return err;
@@ -1569,9 +1378,6 @@ static struct attribute *rgb_apds9251_attributes[] = {
 	&dev_attr_dump_tp_parameters.attr,
 	&dev_attr_light_enable.attr,
 	&dev_attr_apds9251_als_calibrate.attr,
-#ifdef CONFIG_HUAWEI_DSM
-	&dev_attr_dsm_excep.attr,
-#endif
 	NULL
 };
 
@@ -2017,11 +1823,6 @@ static int rgb_apds9251_probe(struct i2c_client *client,
 
 	if (pdata->power_on)
 		err = pdata->power_on(true,data);
-#ifdef CONFIG_HUAWEI_DSM
-		err = apds9251_dsm_init(data);
-		if(err < 0)
-			goto exit_power_off;
-#endif
 
 	i2c_set_clientdata(client, data);
 	rgb_apds9251_parameter_init(data);
@@ -2109,9 +1910,6 @@ static int rgb_apds9251_remove(struct i2c_client *client)
 	input_unregister_device(data->input_dev_als);
 
 	hrtimer_cancel(&data->timer);
-#ifdef  CONFIG_HUAWEI_DSM
-	dsm_unregister_client(apds9251_als_dclient,&dsm_als_apds9251);
-#endif
 
 	if (pdata->power_on)
 		pdata->power_on(false,data);

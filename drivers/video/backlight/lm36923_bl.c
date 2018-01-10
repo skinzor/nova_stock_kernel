@@ -27,12 +27,6 @@
 #define LM36923_BL_HWEN_GPIO 93
 #endif
 
-//#if defined (CONFIG_HUAWEI_DSM)
-#if 0
-#include <dsm/dsm_pub.h>
-extern struct dsm_client *lcd_dclient;
-#endif
-
 struct class *lm36923_class;
 struct lm36923_chip_data *g_pchip;
 
@@ -650,11 +644,6 @@ static int lm36923_probe(struct i2c_client *client,
 	int bl_en_gpio = LM36923_BL_HWEN_GPIO, rc;
 	#endif
 
-//#if defined (CONFIG_HUAWEI_DSM)
-#if 0
-	unsigned int val = 0;
-#endif
-
 	LM36923_INFO("in! \n");
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
@@ -700,26 +689,6 @@ static int lm36923_probe(struct i2c_client *client,
 		dev_err(&client->dev, "fail : chip init\n");
 		goto err_out;
 	}
-
-//#if defined (CONFIG_HUAWEI_DSM)
-#if 0
-	ret = regmap_read(pchip->regmap, REG_FAULT_FLAG, &val);
-	if (ret < 0) {
-		dev_err(&client->dev, "fail : read chip reg REG_FAULT_FLAG error!\n");
-		goto err_out;
-	}
-
-	if (0 != val) {
-		ret = dsm_client_ocuppy(lcd_dclient);
-		if (!ret) {
-			dev_err(&client->dev, "fail : REG_FAULT_FLAG statues error 0X1F=%d!\n", val);
-			dsm_client_record(lcd_dclient, "REG_FAULT_FLAG statues error 0X1F=%d!\n", val);
-			dsm_client_notify(lcd_dclient, DSM_LCD_OVP_ERROR_NO);
-        } else {
-			dev_err(&client->dev, "dsm_client_ocuppy fail:  ret=%d!\n", ret);
-		}
-	}
-#endif
 
 	pchip->dev = device_create(lm36923_class, NULL, 0, "%s", client->name);
 	if (IS_ERR(pchip->dev)) {

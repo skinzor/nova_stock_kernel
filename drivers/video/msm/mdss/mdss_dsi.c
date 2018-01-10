@@ -3048,13 +3048,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	struct device_node *dsi_pan_node = NULL;
 	const char *ctrl_name;
 	struct mdss_util_intf *util;
-#ifdef CONFIG_HUAWEI_DSM
-	struct dsm_dev dsm_lcd = {
-		.name = "dsm_lcd",
-		.fops = NULL,
-		.buff_size = 1024,
-	};
-#endif
 
 	if (!pdev || !pdev->dev.of_node) {
 		pr_err("%s: pdev not found for DSI controller\n", __func__);
@@ -3142,12 +3135,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		pr_err("%s: dsi panel dev reg failed\n", __func__);
 		goto error_pan_node;
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	if (!lcd_dclient) {
-		lcd_dclient = dsm_register_client(&dsm_lcd);
-	}
-#endif
 
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 	if (!(mdss_dsi_is_hw_config_split(ctrl_pdata->shared_data) &&

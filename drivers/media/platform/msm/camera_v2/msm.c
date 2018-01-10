@@ -32,10 +32,6 @@
 #include "cam_hw_ops.h"
 #include <media/msmb_generic_buf_mgr.h>
 #include <linux/jiffies.h>
-#ifdef CONFIG_HUAWEI_DSM
-#include "msm_camera_dsm.h"
-#endif
-
 static struct v4l2_device *msm_v4l2_dev;
 static struct list_head    ordered_sd_list;
 
@@ -849,10 +845,6 @@ int msm_post_event(struct v4l2_event *event, int timeout)
 	uint32_t start_time = 0;
 	uint32_t cost_time = 0;
 
-#ifdef CONFIG_HUAWEI_DSM
-	int len = 0;
-#endif
-
 	session_id = event_data->session_id;
 	stream_id = event_data->stream_id;
 
@@ -918,26 +910,6 @@ int msm_post_event(struct v4l2_event *event, int timeout)
 		if (!rc) {
 			pr_err("%s: Timed out\n", __func__);
 			msm_print_event_error(event);
-#ifdef CONFIG_HUAWEI_DSM
-			memset(camera_dsm_log_buff, 0, MSM_CAMERA_DSM_BUFFER_SIZE);
-			len += snprintf(camera_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len, "[msm_camera] kernel post event timeout.\n");
-			len += snprintf(camera_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len,
-							"Evt_type=%x Evt_id=%d Evt_cmd=%x\n", event->type, event->id,
-							((struct msm_v4l2_event_data *)&event->u.data[0])->command);
-			len += snprintf(camera_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len,
-							"Evt_session_id=%d Evt_stream_id=%d Evt_arg=%d\n",
-							((struct msm_v4l2_event_data *)&event->u.data[0])->session_id,
-							((struct msm_v4l2_event_data *)&event->u.data[0])->stream_id,
-							((struct msm_v4l2_event_data *)&event->u.data[0])->arg_value);
-			if ((len < 0) || (len >= MSM_CAMERA_DSM_BUFFER_SIZE -1))
-				pr_err("%s. write camera_dsm_log_buff error\n", __func__);
-			rc = camera_report_dsm_err(DSM_CAMERA_POST_EVENT_TIMEOUT, cost_time, camera_dsm_log_buff);
-			if (!rc)
-			{
-				pr_err("%s. report dsm err fail.\n", __func__);
-			}
-#endif
-
 			mutex_unlock(&session->lock);
 			return -ETIMEDOUT;
 		} else {
@@ -1336,9 +1308,6 @@ static int msm_probe(struct platform_device *pdev)
 	spin_lock_init(&msm_eventq_lock);
 	spin_lock_init(&msm_pid_lock);
 	INIT_LIST_HEAD(&ordered_sd_list);
-#ifdef CONFIG_HUAWEI_DSM
-	camera_dsm_client = camera_dsm_get_client();
-#endif
 	cam_debugfs_root = debugfs_create_dir(MSM_CAM_LOGSYNC_FILE_BASEDIR,
 						NULL);
 	if (!cam_debugfs_root) {

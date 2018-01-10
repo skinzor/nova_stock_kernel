@@ -775,11 +775,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 #ifdef CONFIG_LOG_JANK
         if (lcd_log_flag && bl_level){
                 LOG_JANK_D(JLID_KERNEL_LCD_BACKLIGHT_ON,"%s,%d", "JL_KERNEL_LCD_BACKLIGHT_ON",bl_level);
-#ifdef CONFIG_HUAWEI_DSM
-                lcd_pwr_status.lcd_dcm_pwr_status |= BIT(3);
-                do_gettimeofday(&lcd_pwr_status.tvl_backlight);
-                time_to_tm(lcd_pwr_status.tvl_backlight.tv_sec, 0, &lcd_pwr_status.tm_backlight);
-#endif
         }
 #endif
 			LCD_LOG_INFO("%s:LCD backlight is: %d \n",__func__,bl_level);
@@ -886,12 +881,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		if (on_cmds->cmd_cnt)
 			mdss_dsi_panel_cmds_send(ctrl, on_cmds,CMD_REQ_COMMIT);
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	lcd_pwr_status.lcd_dcm_pwr_status |= BIT(1);
-	do_gettimeofday(&lcd_pwr_status.tvl_lcd_on);
-	time_to_tm(lcd_pwr_status.tvl_lcd_on.tv_sec, 0, &lcd_pwr_status.tm_lcd_on);
-#endif
 
 #endif
 	if (pinfo->compression_mode == COMPRESSION_DSC)
@@ -1060,9 +1049,6 @@ static int mdss_dsi_check_panel_status(struct mdss_panel_data *pdata)
 		if(0 == count)
 		{
 			ret = -EINVAL;
-#ifdef CONFIG_HUAWEI_DSM
-			lcd_report_dsm_err(DSM_LCD_STATUS_ERROR_NO, rdata[0], 0x0A);
-#endif
 		}
 
 		return ret;
@@ -1167,9 +1153,6 @@ static int mdss_dsi_report_dsm_error(struct mdss_dsi_ctrl_pdata *ctrl_pdata, int
 	} else {
 		return -EINVAL;
 	}
-#ifdef CONFIG_HUAWEI_DSM
-	lcd_report_dsm_status_err(DSM_LCD_STATUS_ERROR_NO, dsm_reg_buf, dsm_reg_str);
-#endif
 
 	return ret;
 }

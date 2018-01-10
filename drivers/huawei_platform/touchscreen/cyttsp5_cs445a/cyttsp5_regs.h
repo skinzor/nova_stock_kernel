@@ -894,25 +894,6 @@ struct cyttsp5_features {
 	((LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)) \
 	&& defined(CONFIG_PM_SLEEP) && defined(CONFIG_PM_RUNTIME))
 
-#ifdef CONFIG_HUAWEI_DSM
-enum FW_uptate_state {
-	FWU_GET_SYSINFO_FAIL = 0,
-	FWU_GENERATE_FW_NAME_FAIL,
-	FWU_REQUEST_FW_FAIL,
-	FWU_FW_CONT_BUILTIN_ERROR,
-	FWU_FW_CONT_ERROR,
-	FWU_REQUEST_EXCLUSIVE_FAIL,
-	TS_UPDATE_STATE_UNDEFINE = 255,
-};
-
-struct tp_dsm_info {
-	int irq_gpio;
-	int rst_gpio;
-	int constraints_I2C_status;
-	int constraints_UPDATE_status;
-	int constraints_ESD_status;
-};
-#endif/*CONFIG_HUAWEI_DSM*/
 struct cyttsp5_core_data {
 	struct list_head node;
 	char core_id[20];

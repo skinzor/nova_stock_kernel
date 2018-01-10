@@ -24,20 +24,6 @@
 extern void adreno_force_waking_gpu(void);
 unsigned int snr_flag = 0;
 
-#if defined (CONFIG_HUAWEI_DSM)
-#include <dsm/dsm_pub.h>
-struct dsm_dev dsm_fingerprint =
-{
-	.name = "dsm_fingerprint",
-	.device_name = "fpc",
-	.ic_name = "NNN",
-	.module_name = "NNN",
-	.fops = NULL,
-	.buff_size = 1024,
-};
-struct dsm_client *fingerprint_dclient = NULL;
-#endif
-
 //add for fingerprint autotest
 static ssize_t result_show(struct device* device,
                        struct device_attribute* attribute,
@@ -860,13 +846,6 @@ static int fingerprint_probe(struct spi_device* spi)
         goto exit;
     }
 
-#if defined (CONFIG_HUAWEI_DSM)
-    if(!fingerprint_dclient)
-    {
-        fingerprint_dclient = dsm_register_client(&dsm_fingerprint);
-    }
-#endif
-
     fpc_log_info("fingerprint driver v3.0 for Android M\n");
 
     fingerprint->dev = dev;
@@ -1038,13 +1017,6 @@ static int fingerprint_probe(struct spi_device* spi)
 
 exit:
     fpc_log_info("fingerprint probe failed!\n");
-#if defined (CONFIG_HUAWEI_DSM)
-    if (error && !dsm_client_ocuppy(fingerprint_dclient))
-    {
-        dsm_client_record(fingerprint_dclient,"fingerprint_probe failed, error = %d\n", error);
-        dsm_client_notify(fingerprint_dclient, DSM_FINGERPRINT_PROBE_FAIL_ERROR_NO);
-    }
-#endif
     return error;
 }
 

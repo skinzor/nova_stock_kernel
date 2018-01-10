@@ -3101,7 +3101,6 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *pa_link = NULL;
 	int pa_daicount = 0;
 #endif
-	audio_dsm_register();
 
 	pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct msm8916_asoc_mach_data), GFP_KERNEL);
@@ -3408,10 +3407,6 @@ parse_mclk_freq:
 err:
 	if (-EPROBE_DEFER != ret) {
 		get_monotonic_boottime(&ts);
-		if (ts.tv_sec >= DSM_REPORT_DELAY_TIME) {
-			audio_dsm_report_info(DSM_AUDIO_CARD_LOAD_FAIL_ERROR_NO,
-				 "%s ret = %d, time = %d", __func__, ret, ts.tv_sec);
-		}
 	}
 	if (pdata->vaddr_gpio_mux_spkr_ctl)
 		iounmap(pdata->vaddr_gpio_mux_spkr_ctl);

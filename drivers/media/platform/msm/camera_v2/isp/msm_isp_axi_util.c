@@ -15,16 +15,8 @@
 #include "msm_isp_util.h"
 #include "msm_isp_axi_util.h"
 
-#ifdef CONFIG_HUAWEI_DSM
-#include "msm_camera_dsm.h"
-#endif
-
 #define HANDLE_TO_IDX(handle) (handle & 0xFF)
 #define ISP_SOF_DEBUG_COUNT 0
-
-#ifdef CONFIG_HUAWEI_DSM
-extern void camera_report_dsm_err_msm_isp(struct vfe_device *vfe_dev, int type, int err_num , const char* str);
-#endif
 
 static int msm_isp_update_dual_HW_ms_info_at_start(
 	struct vfe_device *vfe_dev,
@@ -2841,10 +2833,6 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 			}
 		}
 	}
-#ifdef CONFIG_HUAWEI_DSM
-	if (rc < 0)
-		camera_report_dsm_err_msm_isp(vfe_dev, DSM_CAMERA_ISP_AXI_STREAM_FAIL, rc, "start_axi_stream");
-#endif
 	return rc;
 }
 
@@ -2952,9 +2940,6 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 					pr_err("%s: vfe%d cfg done failed\n",
 						__func__, vfe_dev->pdev->id);
 					stream_info->state = INACTIVE;
-#ifdef CONFIG_HUAWEI_DSM
-					camera_report_dsm_err_msm_isp(vfe_dev, DSM_CAMERA_ISP_AXI_STREAM_FAIL, rc, "stop_axi_stream");
-#endif
 
 				} else
 					pr_err("%s: vfe%d retry success! report err!\n",

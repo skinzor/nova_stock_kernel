@@ -12900,9 +12900,6 @@ static int hdd_driver_init( void)
 #endif
 
       pr_err("%s: driver load failure\n", WLAN_MODULE_NAME);
-#ifdef CONFIG_HUAWEI_DSM
-      wifi_dsm_report_num(DSM_WIFI_DRIVER_LOAD_ERR,"driver load failure",ret_status);
-#endif
    }
    else
    {

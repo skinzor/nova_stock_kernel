@@ -28,10 +28,6 @@
 #ifdef CONFIG_HUAWEI_HW_DEV_DCT
 #include <linux/hw_dev_dec.h>
 #endif
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
-
 
 #define CY_CORE_STARTUP_RETRY_COUNT		3
 u8 tp_color_data = 0;
@@ -42,12 +38,6 @@ static const char *cy_driver_core_version = CY_DRIVER_VERSION;
 static const char *cy_driver_core_date = CY_DRIVER_DATE;
 
 static struct holster_mode cyttsp5_holster_info = {0, 0, 0, 0, 0};
-#ifdef CONFIG_HUAWEI_DSM
-extern struct tp_dsm_info g_tp_dsm_info;
-extern struct dsm_client *tp_cyp_dclient;
-extern ssize_t cyttsp5_dsm_record_basic_err_info(struct device *dev);
-extern int cyttsp5_tp_report_dsm_err(struct device *dev, int type, int err_numb);
-#endif/*CONFIG_HUAWEI_DSM*/
 struct device *gdev = NULL;
 struct device *cyttsp5_core_dev = NULL;
 struct cyttsp5_hid_field {
@@ -4294,9 +4284,6 @@ static int cyttsp5_core_wake_device_from_deep_sleep_(
 				__func__, __LINE__);
 			break;
 		}
-#ifdef CONFIG_HUAWEI_DSM
-		cyttsp5_tp_report_dsm_err(cd->dev, DSM_TP_WAKEUP_ERROR_NO, 0);
-#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err("%s %d: Fail to set power status, retry = %d\n",
 			__func__, __LINE__, retry_times);
 		rc =  -EAGAIN;
@@ -4754,10 +4741,6 @@ reset:
 	/* if hardware rest 3 times, the ic is still not work, 
 	 * we re-power it */
 	if ((0 == retry) && (rc < 0)) {
-#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_ESD_status = rc;
-		cyttsp5_tp_report_dsm_err(cd->dev, DSM_TP_ESD_ERROR_NO, g_tp_dsm_info.constraints_ESD_status);
-#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_info("%s: start to re-power\n", __func__);
 		gpio_set_value(cd->cpdata->rst_gpio, 0);
 

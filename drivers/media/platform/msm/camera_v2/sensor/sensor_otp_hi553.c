@@ -1866,9 +1866,6 @@ static int32_t hi553_otp_write_i2c(struct msm_sensor_ctrl_t *s_ctrl, int32_t add
 
 	if ( rc < 0 ){
 		CMR_LOGE("%s fail, rc = %d! addr = 0x%x, data = 0x%x\n", __func__, rc, addr, data);
-#ifdef CONFIG_HUAWEI_DSM
-		camera_report_dsm_err_otp(s_ctrl, DSM_CAMERA_OTP_I2C_ERR, addr, OTP_WRITE_I2C_ERR);
-#endif
 	}
 
 	return rc;
@@ -1900,9 +1897,6 @@ static int32_t hi553_otp_write_i2c_table(struct msm_sensor_ctrl_t *s_ctrl, struc
 
 	if ( rc < 0 ){
 	CMR_LOGE("%s fail, rc = %d! \n", __func__, rc);
-#ifdef CONFIG_HUAWEI_DSM
-		camera_report_dsm_err_otp(s_ctrl, DSM_CAMERA_OTP_I2C_ERR, 0, OTP_WRITE_I2C_ERR);
-#endif
 	}
 	return rc;
 }
@@ -1921,9 +1915,6 @@ static int32_t hi553_otp_read_i2c(struct msm_sensor_ctrl_t *s_ctrl,uint32_t addr
 				MSM_CAMERA_I2C_BYTE_DATA);
 	if ( rc < 0 ){
 		CMR_LOGE("%s fail, rc = %d! addr = 0x%x, data = 0x%x\n", __func__, rc, addr, *data);
-#ifdef CONFIG_HUAWEI_DSM
-		camera_report_dsm_err_otp(s_ctrl, DSM_CAMERA_OTP_I2C_ERR, addr, OTP_READ_I2C_ERR);
-#endif
 	}
 	return rc;
 }

@@ -196,16 +196,6 @@ struct synaptics_dsx_platform_data {
 	bool shutdown_flag;
 	bool appinfo_display_flag;
 };
-#ifdef CONFIG_HUAWEI_DSM
-ssize_t synaptics_dsm_record_fw_err_info( int err_numb );
-ssize_t synaptics_dsm_f34_pdt_err_info( int err_numb );
-ssize_t synaptics_dsm_f54_pdt_err_info( int err_numb );
-ssize_t synaptics_dsm_f34_read_queries_err_info( int err_numb );
-ssize_t synaptics_dsm_fwu_init_pdt_props_err_info( int err_numb );
-int synp_tp_report_dsm_err( int type, int err_numb );
-
-struct dsm_client* tp_dsm_get_client(void);
-#endif/*CONFIG_HUAWEI_DSM*/
 const char * get_cof_module_name(char * product_id_ptr);
 #endif /*CONFIG_HUAWEI_KERNEL*/
 #endif

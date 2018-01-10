@@ -21,17 +21,9 @@
 #include "msm_camera_io_util.h"
 #include "cam_smmu_api.h"
 
-#ifdef CONFIG_HUAWEI_DSM
-#include "msm_camera_dsm.h"
-#endif
-
 #define MAX_ISP_V4l2_EVENTS 100
 static DEFINE_MUTEX(bandwidth_mgr_mutex);
 static struct msm_isp_bandwidth_mgr isp_bandwidth_mgr;
-
-#ifdef CONFIG_HUAWEI_DSM
-void camera_report_dsm_err_msm_isp(struct vfe_device *vfe_dev, int type, int err_num , const char* str);
-#endif
 
 static uint64_t msm_isp_cpp_clk_rate;
 
@@ -2244,58 +2236,3 @@ void msm_isp_save_framedrop_values(struct vfe_device *vfe_dev,
 		spin_unlock_irqrestore(&stream_info->lock, flags);
 	}
 }
-#ifdef CONFIG_HUAWEI_DSM
-static char camera_isp_dsm_log_buff[MSM_CAMERA_DSM_BUFFER_SIZE] = {0};
-void camera_report_dsm_err_msm_isp(struct vfe_device *vfe_dev, int type, int err_num , const char* str)
-{
-	ssize_t len = 0;
-	long max_clk = 0;
-	int rc = 0;
-
-	memset(camera_isp_dsm_log_buff, 0, MSM_CAMERA_DSM_BUFFER_SIZE);
-
-	/* camera record error info according to err type */
-	switch(type)
-	{
-		case DSM_CAMERA_ISP_OVERFLOW:
-		{
-			/* isp overflow occurred*/
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len, "[msm_sensor]ISP Bus overflow detected.\n");
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len,
-					"isp_bandwidth[ISP_VFE] ab:%llu ib:%llu\nisp_bandwidth[ISP_CPP] ab:%llu ib:%llu\n",
-						isp_bandwidth_mgr.client_info[ISP_VFE0 + vfe_dev->pdev->id].ab,
-						isp_bandwidth_mgr.client_info[ISP_VFE0 + vfe_dev->pdev->id].ib,
-						isp_bandwidth_mgr.client_info[ISP_CPP].ab,
-						isp_bandwidth_mgr.client_info[ISP_CPP].ib);
-
-			vfe_dev->hw_info->vfe_ops.platform_ops.get_max_clk_rate(vfe_dev, &max_clk);//need be rechecked.
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len,
-					"pixel_clock:%ld, max clock:%ld\n", vfe_dev->axi_data.src_info[VFE_PIX_0].pixel_clock, max_clk);
-			break;
-		}
-
-		case DSM_CAMERA_ISP_AXI_STREAM_FAIL:
-			/* isp start/stop AXI stream failed */
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len, "[msm_sensor]%s. ISP AXI wait for config done failed.\n", str);
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len, "pix_stream_count:%d  num_active_stream:%d  active:%d\n",
-					vfe_dev->axi_data.src_info[VFE_PIX_0].pix_stream_count, vfe_dev->axi_data.num_active_stream, vfe_dev->axi_data.src_info[VFE_PIX_0].active);
-			break;
-
-		default:
-			break;
-	}
-
-	if ( len >= MSM_CAMERA_DSM_BUFFER_SIZE -1 )
-	{
-		ISP_DBG("write camera_isp_dsm_log_buff overflow.\n");
-		return;
-	}
-
-	rc = camera_report_dsm_err( type, err_num, camera_isp_dsm_log_buff);
-	if (rc < 0)
-	{
-		ISP_DBG("%s  camera_report_dsm_err fail.\n", __func__);
-	}
-	return ;
-}
-#endif

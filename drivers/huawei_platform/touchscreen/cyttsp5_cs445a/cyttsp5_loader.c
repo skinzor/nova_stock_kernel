@@ -29,9 +29,6 @@
 #include <misc/app_info.h>
 #endif
 #endif /* CONFIG_HUAWEI_KERNEL */
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
 
 #define CYTTSP5_LOADER_NAME "cyttsp5_loader"
 #define CY_FW_MANUAL_UPGRADE_FILE_NAME "cyttsp5_fw_manual_upgrade"
@@ -74,13 +71,6 @@ static const u8 cyttsp5_security_key[] = {
 #define CY_POST_TT_CFG_CRC_MASK			0x2
 #define FILENAME_LEN_MAX 				64
 #define PANEL_NAME_LEN_MAX				16
-
-#ifdef CONFIG_HUAWEI_DSM
-extern struct tp_dsm_info g_tp_dsm_info;
-extern struct dsm_client *tp_cyp_dclient;
-extern ssize_t cyttsp5_dsm_record_basic_err_info(struct device *dev);
-extern int cyttsp5_tp_report_dsm_err(struct device *dev, int type, int err_numb);
-#endif/*CONFIG_HUAWEI_DSM*/
 
 struct cyttsp5_loader_data {
 	struct device *dev;
@@ -574,9 +564,6 @@ static int cyttsp5_upgrade_firmware(struct device *dev, const u8 *fw_img,
 
 	rc = cmd->request_exclusive(dev, CY_LDR_REQUEST_EXCLUSIVE_TIMEOUT);
 	if (rc < 0) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_REQUEST_EXCLUSIVE_FAIL;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err( "%s %d: request_exclusive fail, rc = %d\n", 
 					__func__, __LINE__, rc);
 		goto exit;
@@ -759,26 +746,17 @@ static void _cyttsp5_firmware_cont(const struct firmware *fw, void *context)
 	u8 header_size = 0;
 
 	if (!fw) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_FW_CONT_ERROR;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err( "%s %d: Missing parameter\n", __func__, __LINE__);
 		goto cyttsp5_firmware_cont_exit;
 	}
 	
 	if (!fw->data || !fw->size) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_FW_CONT_ERROR;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err( "%s: No firmware received\n", __func__);
 		goto cyttsp5_firmware_cont_release_exit;
 	}
 
 	header_size = fw->data[0];
 	if (header_size >= (fw->size + 1)) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_FW_CONT_ERROR;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err( "%s: Firmware format is invalid\n", __func__);
 		goto cyttsp5_firmware_cont_release_exit;
 	}
@@ -803,9 +781,6 @@ static int cyttsp5_check_firmware_version_builtin(struct device *dev,
 	int upgrade;
 
 	if (!ld->si) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_GET_SYSINFO_FAIL;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_info( "%s: No firmware infomation found, device FW may be corrupted\n",
 			__func__);
 		return CYTTSP5_AUTO_LOAD_FOR_CORRUPTED_FW;
@@ -845,17 +820,11 @@ static void _cyttsp5_firmware_cont_builtin(const struct firmware *fw,
 	int upgrade;
 
 	if (!fw) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_FW_CONT_BUILTIN_ERROR;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_info( "%s: No builtin firmware\n", __func__);
 		goto _cyttsp5_firmware_cont_builtin_exit;
 	}
 
 	if (!fw->data || !fw->size) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_FW_CONT_BUILTIN_ERROR;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err( "%s: Invalid builtin firmware\n", __func__);
 		goto _cyttsp5_firmware_cont_builtin_exit;
 	}
@@ -967,9 +936,6 @@ static int upgrade_firmware_from_builtin(struct device *dev)
 
 	filename = generate_firmware_filename(dev);
 	if (!filename) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_GENERATE_FW_NAME_FAIL;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err("%s %d:generate firmware filename fail\n", __func__, __LINE__);
 		return -ENOMEM;
 	}
@@ -977,9 +943,6 @@ static int upgrade_firmware_from_builtin(struct device *dev)
 #ifdef CONFIG_HUAWEI_KERNEL
 	retval = request_firmware(&fw_entry, filename, dev);
 	if (retval) {
-		#ifdef CONFIG_HUAWEI_DSM
-		g_tp_dsm_info.constraints_UPDATE_status = FWU_REQUEST_FW_FAIL;
-		#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err("%s %d: Fail request firmware class file load, ret = %d\n", 
 					__func__, __LINE__, retval);
 		goto exit;	
@@ -1615,9 +1578,6 @@ static void cyttsp5_fw_and_config_upgrade(
 		tp_log_info("%s %d:update firmware from platform\n", __func__, __LINE__);
 	}
 #endif
-#ifdef CONFIG_HUAWEI_DSM
-	g_tp_dsm_info.constraints_UPDATE_status = TS_UPDATE_STATE_UNDEFINE;
-#endif/*CONFIG_HUAWEI_DSM*/
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_BINARY_FW_UPGRADE
 	retVal = upgrade_firmware_from_builtin(dev);
 	if (!retVal) {
@@ -1626,11 +1586,6 @@ static void cyttsp5_fw_and_config_upgrade(
 		tp_log_warning("%s %d:firmware haven't upgraded, rc = %d\n", __func__, __LINE__, retVal);
 	}
 #endif
-#ifdef CONFIG_HUAWEI_DSM
-	if(TS_UPDATE_STATE_UNDEFINE != g_tp_dsm_info.constraints_UPDATE_status){
-		cyttsp5_tp_report_dsm_err(dev, DSM_TP_FWUPDATE_ERROR_NO, retVal);
-	}
-#endif/*CONFIG_HUAWEI_DSM*/
 
 	/* when firmware in ic missing, ld->si will be NULL, this issue will lead to ttconfig upgrade fail,
 	   to fix this issue, after upgrade bin, we should request system info again */

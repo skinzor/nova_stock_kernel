@@ -45,14 +45,6 @@
 
 #include <linux/debugfs.h>
 
-#undef CONFIG_HUAWEI_DSM
-
-
-
-#ifdef CONFIG_HUAWEI_DSM
-#include 	<dsm/dsm_pub.h>
-#endif
-
 
 /* Change History 
  *
@@ -191,11 +183,6 @@ static int apds9110_i2c_write(struct i2c_client*client, u8 reg, u16 value,bool f
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		APDS9110_ERR("%s,line %d:attention:i2c write err = %d\n",__func__,__LINE__,err);
-#ifdef CONFIG_HUAWEI_DSM
-		if (data->device_exist == true){
-			apds9110_report_i2c_info(data,err);
-		}
-#endif
 	}
 
 	return err;
@@ -232,11 +219,6 @@ static int apds9110_i2c_read(struct i2c_client*client, u8 reg,bool flag)
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		APDS9110_ERR("%s,line %d:attention: i2c read err = %d,reg=0x%x\n",__func__,__LINE__,err,reg);
-#ifdef CONFIG_HUAWEI_DSM
-		if (data->device_exist == true){
-			apds9110_report_i2c_info(data,err);
-		}
-#endif
 	}
 
 	return err;
@@ -520,9 +502,6 @@ static int apds9110_open_ps_sensor(struct apds9110_data *data, struct i2c_client
 		}
 
 		data->enable_ps_sensor= 1;
-#ifdef CONFIG_HUAWEI_DSM
-		apds_dsm_save_threshold(data, APDS9110_FAR_INIT, APDS9110_NEAR_INIT);
-#endif
 		data->enable = APDS9110_DD_PRX_EN;
 		/*Enable chip interrupts*/
 		ret = apds9110_i2c_write(client,APDS9110_DD_INT_CFG_ADDR,APDS9110_DD_PRX_INT_EN,APDS9110_I2C_BYTE);
@@ -638,9 +617,6 @@ static int apds9110_enable_ps_sensor(struct i2c_client *client,unsigned int val)
 			APDS9110_ERR("%s,line %d:read power_value failed,open ps fail\n",__func__,__LINE__);
 			return ret;
 		}
-#ifdef CONFIG_HUAWEI_DSM
-		apds_dsm_no_irq_check(data);
-#endif
 
 		power_key_ps = false;
 		schedule_delayed_work(&data->powerkey_work, msecs_to_jiffies(100));
@@ -1294,12 +1270,6 @@ static int apds9110_probe(struct i2c_client *client,
 	if (pdata->power_on)
 		err = pdata->power_on(true,data);
 
-#ifdef CONFIG_HUAWEI_DSM
-		err = apds9110_dsm_init(data);
-		if(err < 0)
-			goto exit_uninit;
-#endif
-
 	i2c_set_clientdata(client, data);
 	apds9110_parameter_init(data);
 
@@ -1307,13 +1277,11 @@ static int apds9110_probe(struct i2c_client *client,
 	err = apds9110_pinctrl_init(data);
 	if (err) {
 		APDS9110_ERR("%s,line %d:Can't initialize pinctrl\n",__func__,__LINE__);
-		goto exit_unregister_dsm;
 	}
 
 	err = pinctrl_select_state(data->pinctrl, data->pin_default);
 	if (err) {
 		APDS9110_ERR("%s,line %d:Can't select pinctrl default state\n",__func__,__LINE__);
-		goto exit_unregister_dsm;
 	}
 
 	mutex_init(&data->update_lock);
@@ -1325,18 +1293,12 @@ static int apds9110_probe(struct i2c_client *client,
 	err = apds9110_read_device_id(client);
 	if (err) {
 		APDS9110_ERR("%s: Failed to read apds993x\n", __func__);
-		goto exit_unregister_dsm;
 	}
 	
 	err = apds9110_init_client(client);
 	if (err) {
 		APDS9110_ERR("%s: Failed to init apds9110\n", __func__);
-		goto exit_unregister_dsm;
 	}
-
-	err = apds9110_input_init(data);
-	if(err)
-		goto exit_unregister_dsm;
 
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &apds9110_attr_group);
@@ -1385,13 +1347,6 @@ exit_remove_sysfs_group:
 	sysfs_remove_group(&client->dev.kobj, &apds9110_attr_group);
 exit_unregister_dev_ps:
 	input_unregister_device(data->input_dev_ps);
-#ifdef CONFIG_HUAWEI_DSM
-exit_unregister_dsm:
-	apds_dsm_exit();
-exit_uninit:
-#else
-exit_unregister_dsm:
-#endif
 	if (pdata->power_on)
 		pdata->power_on(false,data);
 	if (pdata->exit)
@@ -1418,9 +1373,6 @@ static int apds9110_remove(struct i2c_client *client)
 	input_unregister_device(data->input_dev_ps);
 
 	free_irq(client->irq, data);
-#ifdef CONFIG_HUAWEI_DSM
-	apds9110_dsm_exit();
-#endif
 
 	if (pdata->power_on)
 		pdata->power_on(false,data);

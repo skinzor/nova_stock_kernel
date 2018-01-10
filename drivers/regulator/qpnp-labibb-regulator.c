@@ -1377,9 +1377,6 @@ static int qpnp_labibb_regulator_enable(struct qpnp_labibb *labibb)
 
 	if (!enabled) {
 		pr_err("failed for IBB %x\n", val);
-#ifdef CONFIG_HUAWEI_KERNEL_LCD
-		lcd_report_dsm_labibb_err(DSM_LCD_MDSS_VSP_VSN_ERROR_NO, val, REG_IBB_STATUS1);
-#endif
 		goto err_out;
 	}
 

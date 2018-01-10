@@ -1492,10 +1492,6 @@ void mdss_mdp_clk_ctrl(int enable)
 				changed++;
 		} else {
 			pr_err("Can not be turned off\n");
-#ifdef CONFIG_HUAWEI_DSM
-			/* report mdp clk dsm error */
-			lcd_report_dsm_err(DSM_LCD_MDSS_MDP_CLK_ERROR_NO,0,0);
-#endif
 		}
 	}
 

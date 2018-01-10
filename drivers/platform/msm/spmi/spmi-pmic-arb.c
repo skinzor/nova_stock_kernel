@@ -980,8 +980,6 @@ __pmic_arb_periph_irq(int irq, void *dev_id, bool show)
 		irq_none_cnt++;
 		/* for irq_none, report dmd abnormal irq issue every 99900 */
 		if (irq_none_cnt >= 99900) {
-			dsm_post_chg_bms_info(DSM_CHG_SPMI_INT_ERR,
-						"spmi irq none storm\n");
 			irq_none_cnt = 0;
 		}
 		irq_none_cnt++;

@@ -55,9 +55,6 @@
 #include <huawei_platform/log/log_jank.h>
 #endif
 
-#ifdef CONFIG_HUAWEI_DSM
-//#include <linux/dsm_pub.h>
-#endif
 #include <misc/app_info.h>
 
 /*prevent shake time is AKM8789_TIMER_DEBOUNCE*/
@@ -627,10 +624,6 @@ irqreturn_t hall_event_isr(int irq, void *dev)
 	else{
 		queue_work(data->hall_wq, &data->hall_work);
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	//dsm_key_pressed(DSM_HALL_IRQ);
-#endif
 
 	/*interrupts counter increases 1*/
 	atomic_inc(&irq_no_at);

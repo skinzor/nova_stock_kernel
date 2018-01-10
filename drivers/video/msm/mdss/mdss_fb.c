@@ -1936,12 +1936,6 @@ static int mdss_fb_blank_unblank(struct msm_fb_data_type *mfd)
 			return ret;
 	}
 
-#ifdef CONFIG_HUAWEI_DSM
-	lcd_pwr_status.lcd_dcm_pwr_status |= BIT(0);
-	do_gettimeofday(&lcd_pwr_status.tvl_unblank);
-	time_to_tm(lcd_pwr_status.tvl_unblank.tv_sec, 0, &lcd_pwr_status.tm_unblank);
-#endif
-
 	cur_power_state = mfd->panel_power_state;
 	pr_debug("Transitioning from %d --> %d\n", cur_power_state,
 		MDSS_PANEL_POWER_ON);
@@ -2067,9 +2061,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("unblank called. cur pwr state=%d\n", cur_power_state);
-#ifdef CONFIG_HUAWEI_DSM
-		lcd_pwr_status.panel_power_on = 1;
-#endif
 		ret = mdss_fb_blank_unblank(mfd);
 #ifdef CONFIG_HUAWEI_KERNEL_LCD
 			mfd->panel_info->inversion_mode = COLUMN_INVERSION;
@@ -2112,9 +2103,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		mdss_dsi_status_check_ctl(mfd,false);
 #endif
 		ret = mdss_fb_blank_blank(mfd, req_power_state);
-#ifdef CONFIG_HUAWEI_DSM
-		lcd_pwr_status.panel_power_on = 0;
-#endif
 		break;
 	}
 
@@ -3036,10 +3024,6 @@ static int __mdss_fb_wait_for_fence_sub(struct msm_sync_pt_data *sync_pt_data,
 	}
 
 	if (ret < 0) {
-#ifdef CONFIG_HUAWEI_DSM
-		/* report fence dsm error */
-		lcd_report_dsm_err(DSM_LCD_MDSS_FENCE_ERROR_NO,ret,0);
-#endif
 		pr_err("%s: sync_fence_wait failed! ret = %x\n",
 				sync_pt_data->fence_name, ret);
 		for (; i < fence_cnt; i++)
@@ -3690,11 +3674,6 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 #ifdef CONFIG_HUAWEI_KERNEL_LCD
 	if(!mfd->frame_updated){
 		mfd->frame_updated = 1;
-#ifdef CONFIG_HUAWEI_DSM
-		lcd_pwr_status.lcd_dcm_pwr_status |= BIT(2);
-		do_gettimeofday(&lcd_pwr_status.tvl_set_frame);
-		time_to_tm(lcd_pwr_status.tvl_set_frame.tv_sec, 0, &lcd_pwr_status.tm_set_frame);
-#endif
 		LCD_LOG_INFO("%s:begin to display the first frame.\n",__func__);
 	}
 #endif

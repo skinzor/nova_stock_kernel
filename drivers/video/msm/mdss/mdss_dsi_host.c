@@ -2076,9 +2076,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	char *bp;
 	struct mdss_dsi_ctrl_pdata *mctrl = NULL;
 	int ignored = 0;	/* overflow ignored */
-#ifdef CONFIG_HUAWEI_DSM
-	int rg_address;
-#endif
 
 	bp = tp->data;
 
@@ -2092,10 +2089,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 		if (IS_ERR_VALUE(ret)) {
 			pr_err("unable to map dma memory to iommu(%d)\n", ret);
 			ctrl->mdss_util->iommu_unlock();
-
-            #ifdef CONFIG_HUAWEI_DSM
-            lcd_report_dsm_err(DSM_LCD_MDSS_IOMMU_ERROR_NO,ret,0);
-            #endif
 
 			return -ENOMEM;
 		}
@@ -2185,13 +2178,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 		mctrl->dma_addr = 0;
 		mctrl->dma_size = 0;
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	if (ret < 0) {
-		rg_address =  ((tp->len > 4) ? *(tp->data + 4) : *(tp->data));
-		lcd_report_dsm_err(DSM_LCD_MIPI_ERROR_NO, ret, rg_address);
-	}
-#endif
 
 	if (ctrl->dmap_iommu_map) {
 		mdss_smmu_dsi_unmap_buffer(ctrl->dma_addr, domain,
@@ -2526,9 +2512,6 @@ void mdss_dsi_cmd_mdp_busy(struct mdss_dsi_ctrl_pdata *ctrl)
 			rc = 1;
 		spin_unlock_irqrestore(&ctrl->mdp_lock, flags);
 		if (!rc) {
-#ifdef CONFIG_HUAWEI_DSM
-			lcd_report_dsm_err(DSM_LCD_MDSS_MDP_BUSY_ERROR_NO,0,0);
-#endif
 			if (mdss_dsi_mdp_busy_tout_check(ctrl)) {
 				pr_err("%s: timeout error\n", __func__);
 				MDSS_XLOG_TOUT_HANDLER("mdp", "dsi0_ctrl",

@@ -32,9 +32,6 @@
 #ifdef CONFIG_APP_INFO
 #include <misc/app_info.h>
 #endif /*CONFIG_APP_INFO*/
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
 #include "synaptics_dsx_esd.h"
 static char touch_info[50] = {0};
 #endif /*CONFIG_HUAWEI_KERNEL*/
@@ -365,96 +362,6 @@ static struct synaptics_rmi4_fwu_handle *fwu;
 
 DECLARE_COMPLETION(fwup_remove_complete);
 /* fw err infomation: err number */
-#ifdef CONFIG_HUAWEI_DSM
-ssize_t synaptics_dsm_record_fw_err_info( int err_numb )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	/* fw upgrad err number */
-	size =dsm_client_record(tp_dclient, "fw upgrad err number:%d\n", err_numb );
-	total_size += size;
-
-	/* test whether BL is ok */
-
-
-	return total_size;
-
-}
-
-/* F34 read pdt err infomation: err number */
-static struct synaptics_rmi4_fn_desc *g_rmi_fd = NULL;
-ssize_t synaptics_dsm_f34_pdt_err_info( int err_numb )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	/* F34 read pdt err number */
-	size =dsm_client_record(tp_dclient, "F34 read pdt err number:%d\n", err_numb );
-	total_size += size;
-	
-	/* F34 record pdt err info */
-	if(NULL != g_rmi_fd)
-	{
-		dsm_client_record(tp_dclient, 
-					"struct synaptics_rmi4_fn_desc{\n"
-					" query_base_addr       :%d\n"
-					" cmd_base_addr         :%d\n"
-					" ctrl_base_addr        :%d\n"
-					" data_base_addr        :%d\n"
-					" intr_src_count(3)     :%d\n"
-					" fn_number             :%d\n"
-					"}\n",
-					g_rmi_fd->query_base_addr,
-					g_rmi_fd->cmd_base_addr,
-					g_rmi_fd->ctrl_base_addr,
-					g_rmi_fd->data_base_addr,
-					g_rmi_fd->intr_src_count,
-					g_rmi_fd->fn_number);
-		total_size += size;
-	}
-
-	return total_size;
-}
-/* fwu init read pdt props: err number */
-ssize_t synaptics_dsm_fwu_init_pdt_props_err_info( int err_numb )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	/* fwu init read pdt props err number*/
-	size =dsm_client_record(tp_dclient, "fwu init read pdt props err number:%d\n", err_numb );
-	total_size += size;
-
-	return total_size;
-}
-/* f34 read queries: err number */
-ssize_t synaptics_dsm_f34_read_queries_err_info( int err_numb )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	/* f34 read queries err number*/
-	size =dsm_client_record(tp_dclient, "f34 read queries err number:%d\n", err_numb );
-	total_size += size;
-	/* F34 record bootloader info */
-	if(NULL != fwu)
-	{
-		size =dsm_client_record(tp_dclient, "fwu->bootloader_id[1]='%c'\n", fwu->bootloader_id[1]);
-		total_size += size;
-	}
-
-	return total_size;
-}
-#endif/*CONFIG_HUAWEI_DSM*/
 
 static unsigned int extract_uint_le(const unsigned char *ptr)
 {
@@ -948,9 +855,6 @@ pdt_done:
 	pdt_retry--;
 	/* if f01found or f34found is not set, print the register data, and retry to read the register */
 	if (!f01found || !f34found) {
-#ifdef CONFIG_HUAWEI_DSM
-		g_rmi_fd = &rmi_fd;
-#endif/*CONFIG_HUAWEI_DSM*/
 
 		tp_log_err("%s#line %d#\n",__func__,__LINE__);
 		tp_log_err("%s addr(0x%02x)\n",__func__,addr);
@@ -976,11 +880,6 @@ pdt_done:
 			tp_log_err("%s: retry(%d) to scan pdt \n",__func__,pdt_retry);
 			goto init_f01_f34;
 		}
-
-		/* report to device_monitor */
-#ifdef CONFIG_HUAWEI_DSM
-		synp_tp_report_dsm_err(DSM_TP_F34_PDT_ERROR_NO, retval);
-#endif/*CONFIG_HUAWEI_DSM*/
 
 		/*delete the app info set here*/
 		return -EINVAL;
@@ -1752,13 +1651,6 @@ int synaptics_fw_upgrade(unsigned char *fw_data)
 
 	retval = fwu_start_reflash();
 
-#ifdef CONFIG_HUAWEI_DSM
-	/* if fw upgrade err, report err */
-	if(retval<0) {
-		synp_tp_report_dsm_err(DSM_TP_FWUPDATE_ERROR_NO, retval);
-	}
-#endif/*CONFIG_HUAWEI_DSM*/
-
 	pm_runtime_put(&fwu->rmi4_data->i2c_client->dev);
 
 
@@ -2201,9 +2093,6 @@ static int synaptics_rmi4_fwu_init(struct synaptics_rmi4_data *rmi4_data)
 	} else if (pdt_props.has_bsr) {
 		tp_log_err("%s: Reflash for LTS not currently supported\n", __func__);
 		retval = -ENODEV;
-#ifdef CONFIG_HUAWEI_DSM
-		synp_tp_report_dsm_err( DSM_TP_PDT_PROPS_ERROR_NO, retval);
-#endif/*CONFIG_HUAWEI_DSM*/
 		goto exit_free_mem;
 	}
 
@@ -2230,9 +2119,6 @@ static int synaptics_rmi4_fwu_init(struct synaptics_rmi4_data *rmi4_data)
 	retval = fwu_read_f34_queries();
 	if (retval < 0){
 		tp_log_err("%s: failed to read f34 queries,retval = %d\n", __func__, retval);
-#ifdef CONFIG_HUAWEI_DSM
-		synp_tp_report_dsm_err( DSM_TP_F34_READ_QUERIES_ERROR_NO, retval);
-#endif/*CONFIG_HUAWEI_DSM*/
 		goto exit_free_mem;
 	}
 

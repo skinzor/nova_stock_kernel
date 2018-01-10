@@ -47,11 +47,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
-#ifdef CONFIG_HUAWEI_DSM
-#include 	<dsm/dsm_pub.h>
-#endif
 
-//#undef CONFIG_HUAWEI_DSM
 #define TXC_PA2240_DRV_NAME	"txc_pa2240"
 #define DRIVER_VERSION		"1.0.0"
 
@@ -147,9 +143,6 @@ struct txc_pa2240_data {
 	/*for capture the i2c and other errors*/
 	struct ls_test_excep ls_test_exception;
 	struct delayed_work dsm_work;
-        #ifdef CONFIG_HUAWEI_DSM
-	struct delayed_work dsm_irq_work;
-        #endif
 
 	int irq;
 	int count;		/* the interrupt counter*/
@@ -197,15 +190,6 @@ static struct sensors_classdev sensors_proximity_cdev = {
 /* Proximity sensor use this work queue to report data */
 static struct workqueue_struct *txc_pa2240_workqueue = NULL;
 /*changeable als gain and ADC time,we don't use*/
-#ifdef CONFIG_HUAWEI_DSM
-static ssize_t txc_pa2240_print_reg_buf(struct device *dev,
-			struct device_attribute *attr, char *buf);
-static ssize_t txc_pa2240_write_reg(struct device *dev, struct device_attribute *attr,
-						const char *buf, size_t count);
-
-static struct device_attribute txc_pa2240_show_regs =
-		__ATTR(dump_reg, 0440, txc_pa2240_print_reg_buf, txc_pa2240_write_reg);
-#endif
 static int far_init=199;
 static int near_init=200;
 static int txc_power_delay_flag = 1;     /*1 not always on ,0 always on*/
@@ -217,392 +201,6 @@ static int txc_pa2240_init_client(struct i2c_client *client);
 static int txc_pa2240_power_off_init_client(struct i2c_client *client);
 static int txc_pa2240_i2c_read(struct i2c_client*client, u8 reg,bool flag);
 static void operate_irq(struct txc_pa2240_data *data, int enable, bool sync);
-
-#ifdef CONFIG_HUAWEI_DSM
-static struct dsm_client *txc_pa2240_ps_dclient = NULL;
-#define CLIENT_NAME_PS_PA2240		"dsm_ps_pa2240"
-/* dsm client for p-sensor */
-static struct dsm_dev dsm_ps_pa2240 = {
-	.name 		= CLIENT_NAME_PS_PA2240,		// dsm client name
-	.fops 		= NULL,						// options
-	.buff_size 	= DSM_SENSOR_BUF_MAX,			// buffer size
-};
-
-static void txc_pa2240_dsm_read_regs(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-
-	/*
-	* read all regs to buf
-	*/
-	txc_pa2240_print_reg_buf(&data->client->dev,&txc_pa2240_show_regs, excep->reg_buf);
-}
-
-
-static int txc_pa2240_dsm_report_i2c(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-
-	ssize_t size = 0;
-
-	size = dsm_client_record(txc_pa2240_ps_dclient,
-				"i2c_scl_val=%d,i2c_sda_val=%d,vdd = %d, vdd_status = %d\n"
-				"vio=%d, vio_status=%d, excep_num=%d, i2c_err_num=%d\n"
-				,excep->i2c_scl_val,excep->i2c_sda_val,excep->vdd_mv,excep->vdd_status
-				,excep->vio_mv,excep->vio_status,excep->excep_num,excep->i2c_err_num);
-
-	/*if device is not probe successfully or client is null, don't notify dsm work func*/
-	if(!data->device_exist  || txc_pa2240_ps_dclient == NULL){
-		return -ENODEV;
-	}
-
-	return size;
-
-}
-
-static int txc_pa2240_dsm_report_wrong_irq(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-	int irq_gpio = data->platform_data->irq_gpio;
-	ssize_t size;
-
-
-	/*
-	*	read  regs and irq gpio
-	*/
-	txc_pa2240_dsm_read_regs(data);
-	excep->irq_val = gpio_get_value(irq_gpio);
-
-
-	size = dsm_client_record( txc_pa2240_ps_dclient,"irq_pin = %d\n regs:%s \n",
-		excep->irq_val, excep->reg_buf);
-
-	TXC_PA2240_ERR("dsm error-> irq_pin = %d\n regs:%s\n",
-				excep->irq_val, excep->reg_buf);
-
-	return 0;
-
-}
-
-static int txc_pa2240_dsm_report_not_change_threshold(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-	ssize_t size = 0;
-
-	txc_pa2240_dsm_read_regs(data);
-	excep->irq_val = gpio_get_value(data->platform_data->irq_gpio);
-
-	size = dsm_client_record(txc_pa2240_ps_dclient, "irq_pin = %d high_thrhd = %d, low_thrhd = %d\n regs:%s",
-							 excep->irq_val, excep->last_high_threshold,
-							 excep->last_low_threshold, excep->reg_buf);
-
-	TXC_PA2240_ERR("dsm error->""irq_pin = %d high_thrhd = %d, low_thrhd = %d\n regs:%s",
-							 excep->irq_val, excep->last_high_threshold,
-							 excep->last_low_threshold, excep->reg_buf);
-
-	return size;
-}
-
-static int txc_pa2240_dsm_report_no_irq(struct txc_pa2240_data *data)
-{
-	ssize_t size = 0;
-
-	size = txc_pa2240_dsm_report_wrong_irq(data);
-
-	return size;
-}
-
-#if 0
-static int  txc_pa2240_dsm_report_flag(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-	ssize_t size = 0;
-	txc_pa2240_dsm_read_regs(data);
-	size = dsm_client_record(txc_pa2240_ps_dclient," regs:%s, enable_ps_sensor = %d\n",
-		excep->reg_buf,data->enable_ps_sensor);
-	TXC_PA2240_ERR("dsm error->""regs:%s,enable_ps_sensor = %d\n",
-		excep->reg_buf,data->enable_ps_sensor);
-	return size;
-}
-
-static int txc_pa2240_dsm_report_ps_threshold(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-	ssize_t size = 0;
-	txc_pa2240_dsm_read_regs(data);
-	size = dsm_client_record(txc_pa2240_ps_dclient," regs:%s,pilt = %d,piht = %d\n",
-		excep->reg_buf,data->pilt,data->piht);
-	TXC_PA2240_ERR("dsm error->""regs:%s,pilt = %d,piht = %d\n",
-		excep->reg_buf,data->pilt,data->piht);
-	return size;
-}
-#endif
-
-static int txc_pa2240_dsm_report_err(int errno,struct txc_pa2240_data *data)
-{
-	int size = 0;
-
-	if(dsm_client_ocuppy(txc_pa2240_ps_dclient))
-	{
-		/* buffer is busy */
-		TXC_PA2240_ERR("%s: buffer is busy!, errno = %d\n", __func__,errno);
-		return -EBUSY;
-	}
-
-	TXC_PA2240_INFO("dsm error, errno = %d \n", errno);
-
-	switch(errno){
-		case DSM_LPS_I2C_ERROR:
-			size = txc_pa2240_dsm_report_i2c(data);
-			break;
-
-		case DSM_LPS_WRONG_IRQ_ERROR:
-			size = txc_pa2240_dsm_report_wrong_irq(data);
-			break;
-
-		case DSM_LPS_THRESHOLD_ERROR:
-			size = txc_pa2240_dsm_report_not_change_threshold(data);
-			break;
-
-		case DSM_LPS_ENABLED_IRQ_ERROR:
-			size = txc_pa2240_dsm_report_no_irq(data);
-			break;
-
-		#if 0
-		case DSM_LPS_ENABLED_ERROR:
-			size = txc_pa2240_dsm_report_flag(data);
-			break;
-
-		case DSM_LPS_THRESHOLD_SIZE_ERROR:
-			size = txc_pa2240_dsm_report_ps_threshold(data);
-			break;
-		#endif
-
-		default:
-			break;
-
-	}
-	if(size > -1)
-	{
-		dsm_client_notify(txc_pa2240_ps_dclient, errno);
-		TXC_PA2240_ERR("%s:line:%d,size = %d\n",__func__,__LINE__,size);
-	}
-	return size;
-}
-
-static void txc_pa2240_dsm_no_irq_check(struct txc_pa2240_data *data)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-
-
-	/* add this code segment to enable ps func
-	*	irq gpio status
-	*/
-	atomic_set(&excep->ps_enable_flag, 1);
-	/*delete it, no use check_type*/
-
-	schedule_delayed_work(&data->dsm_irq_work, msecs_to_jiffies(120));
-}
-
-static void txc_pa2240_dsm_save_threshold(struct txc_pa2240_data *data, int high, int low)
-{
-	struct ls_test_excep *excep = &data->ls_test_exception;
-
-	mutex_lock(&excep->dsm_lock);
-	excep->last_high_threshold = high;
-	excep->last_low_threshold = low;
-	mutex_unlock(&excep->dsm_lock);
-}
-
-static void txc_pa2240_dsm_no_update_threhold_check(struct txc_pa2240_data *data)
-{
-	schedule_delayed_work(&data->dsm_work, msecs_to_jiffies(10));
-}
-
-static void txc_pa2240_dsm_change_ps_enable_status(struct txc_pa2240_data *data)
-{
-	/*
-	*	add this code segment to report ps event.
-	*/
-	if (atomic_cmpxchg(&data->ls_test_exception.ps_enable_flag, 1, 0)){
-		data->ls_test_exception.ps_report_flag = 1;
-	}
-}
-
-static int txc_pa2240_dump_i2c_exception_status(struct txc_pa2240_data *data)
-{
-	int ret = 0;
-	/* print pm status and i2c gpio status*/
-	struct ls_test_excep *excep = &data->ls_test_exception;
-
-	if (data->vdd == NULL) {
-		return -ENXIO;
-	}
-
-	if (data->vio == NULL) {
-		return -ENXIO;
-	}
-
-	/* read i2c_sda i2c_scl gpio value*/
-	mutex_lock(&data->update_lock);
-	excep->i2c_scl_val = gpio_get_value(data->platform_data->i2c_scl_gpio);
-	excep->i2c_sda_val = gpio_get_value(data->platform_data->i2c_sda_gpio);
-	mutex_unlock(&data->update_lock);
-
-	/* get regulator's status*/
-	excep->vdd_status = regulator_is_enabled(data->vdd);
-	if(excep->vdd_status < 0){
-		TXC_PA2240_ERR("%s,line %d:regulator_is_enabled vdd failed\n",__func__,__LINE__);
-	}
-	excep->vio_status = regulator_is_enabled(data->vio);
-	if(excep->vio_status < 0){
-		TXC_PA2240_ERR("%s,line %d:regulator_is_enabled vio failed\n",__func__,__LINE__);
-	}
-
-	/* get regulator's value*/
-	excep->vdd_mv = regulator_get_voltage(data->vdd)/1000;
-	if(excep->vdd_mv < 0){
-		TXC_PA2240_ERR("%s,line %d:regulator_get_voltage vdd failed\n",__func__,__LINE__);
-	}
-
-	excep->vio_mv = regulator_get_voltage(data->vio)/1000;
-	if(excep->vio_mv < 0){
-		TXC_PA2240_ERR("%s,line %d:regulator_get_voltage vio failed\n",__func__,__LINE__);
-	}
-
-	/* report i2c err info */
-	ret = txc_pa2240_dsm_report_err(DSM_LPS_I2C_ERROR,data);
-
-	TXC_PA2240_INFO("%s,line %d:i2c_scl_val=%d,i2c_sda_val=%d,vdd = %d, vdd_status = %d\n"
-			"vio=%d, vio_status=%d, excep_num=%d, i2c_err_num=%d",__func__,__LINE__
-			,excep->i2c_scl_val,excep->i2c_sda_val,excep->vdd_mv,excep->vdd_status
-			,excep->vio_mv,excep->vio_status,excep->excep_num,excep->i2c_err_num);
-
-	excep->i2c_err_num = 0;
-
-	return ret;
-
-}
-
-
-static void txc_pa2240_report_i2c_info(struct txc_pa2240_data* data, int ret)
-{
-	data->ls_test_exception.i2c_err_num = ret;
-	txc_pa2240_dump_i2c_exception_status(data);
-}
-
-/*************************************************
-  Function:        txc_pa2240_dsm_irq_excep_work
-  Description:    this func is to report dsm err, no irq occured
-                       after ps enabled
-  Input:            work
-  Output:          none
-  Return:          0
-*************************************************/
-static void txc_pa2240_dsm_irq_excep_work(struct work_struct *work)
-{
-	struct txc_pa2240_data *data =
-		container_of((struct delayed_work *)work, struct txc_pa2240_data, dsm_irq_work);
-
-	struct ls_test_excep *excep = &data->ls_test_exception;
-
-			if(!excep->ps_report_flag){
-				/*
-				* report dsm err, no irq occured after ps enabled.
-				*/
-				txc_pa2240_dsm_report_err(DSM_LPS_ENABLED_IRQ_ERROR,data);
-
-			}
-}
-
-static void txc_pa2240_excep_work(struct work_struct *work)
-{
-	struct txc_pa2240_data *data =
-		container_of((struct delayed_work *)work, struct txc_pa2240_data, dsm_work);
-	struct i2c_client *client = data->client;
-	int high_threshold;
-	int low_threshold;
-
-	/*
-	*	read high and low threshold, save them.
-	*/
-	//low_threshold = txc_pa2240_i2c_read(client,APDS993X_PILTL_REG,APDS993X_I2C_WORD);
-	//high_threshold = txc_pa2240_i2c_read(client,APDS993X_PIHTL_REG,APDS993X_I2C_WORD);
-	low_threshold = txc_pa2240_i2c_read(client, TXC_PA2240_REG_PS_TL,TXC_PA2240_I2C_BYTE);
-	high_threshold = txc_pa2240_i2c_read(client, TXC_PA2240_REG_PS_TH,TXC_PA2240_I2C_BYTE);
-	txc_pa2240_dsm_save_threshold(data, high_threshold, low_threshold);
-
-	/*
-	* report dsm err, high and low threshold don't changed after ps irq.
-	*/
-	txc_pa2240_dsm_report_err(DSM_LPS_THRESHOLD_ERROR,data);
-
-
-}
-
-
-static int txc_pa2240_dsm_init(struct txc_pa2240_data *data)
-{
-	txc_pa2240_ps_dclient = dsm_register_client(&dsm_ps_pa2240);
-	if (!txc_pa2240_ps_dclient) {
-		TXC_PA2240_ERR("%s@%d register dsm txc_pa2240_ps_dclient failed!\n",__func__,__LINE__);
-		return -ENOMEM;
-	}
-	/*for dmd */
-	//txc_pa2240_ps_dclient->driver_data = data;
-
-	data->ls_test_exception.reg_buf = kzalloc(512, GFP_KERNEL);
-	if(!data->ls_test_exception.reg_buf){
-		TXC_PA2240_ERR("%s@%d alloc dsm reg_buf failed!\n",__func__,__LINE__);
-		return -ENOMEM;
-	}
-
-	INIT_DELAYED_WORK(&data->dsm_work, txc_pa2240_excep_work);
-	INIT_DELAYED_WORK(&data->dsm_irq_work, txc_pa2240_dsm_irq_excep_work);
-	mutex_init(&data->ls_test_exception.dsm_lock);
-
-	return 0;
-}
-
-static void txc_pa2240_dsm_exit(void)
-{
-	dsm_unregister_client(txc_pa2240_ps_dclient,&dsm_ps_pa2240);
-}
-
-static ssize_t txc_pa2240_sysfs_dsm_test(struct device *dev, struct device_attribute *attr,
-						const char *buf, size_t count)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct txc_pa2240_data *data = i2c_get_clientdata(client);
-	long mode;
-	int ret = 0;
-
-	if (strict_strtol(buf, 10, &mode))
-			return -EINVAL;
-
-	switch(mode){
-		case DSM_LPS_I2C_ERROR:
-			ret = txc_pa2240_dump_i2c_exception_status(data);
-			break;
-		case DSM_LPS_WRONG_IRQ_ERROR:
-		case DSM_LPS_THRESHOLD_ERROR:
-		case DSM_LPS_ENABLED_IRQ_ERROR:
-			ret = txc_pa2240_dsm_report_err(mode, data);
-			break;
-
-		default:
-			TXC_PA2240_ERR("%s unsupport err_no = %ld \n", __func__, mode);
-			break;
-
-	}
-
-	return ret;
-}
-
-static DEVICE_ATTR(dsm_excep,S_IWUSR|S_IWGRP, NULL, txc_pa2240_sysfs_dsm_test);
-
-#endif
-
 
 static ssize_t txc_pa2240_write_file(char *filename, char* param)
 {
@@ -663,11 +261,6 @@ static int txc_pa2240_i2c_write(struct i2c_client*client, u8 reg, u16 value,bool
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		TXC_PA2240_ERR("%s,line %d:attention:i2c write err = %d\n",__func__,__LINE__,err);
-#ifdef CONFIG_HUAWEI_DSM
-		if (data->device_exist){
-			txc_pa2240_report_i2c_info(data,err);
-		}
-#endif
 	}
 
 	return err;
@@ -703,11 +296,6 @@ static int txc_pa2240_i2c_read(struct i2c_client*client, u8 reg,bool flag)
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		TXC_PA2240_ERR("%s,line %d:attention: i2c read err = %d,reg=0x%x\n",__func__,__LINE__,err,reg);
-#ifdef CONFIG_HUAWEI_DSM
-		if (data->device_exist){
-			txc_pa2240_report_i2c_info(data,err);
-		}
-#endif
 	}
 
 	return err;
@@ -985,10 +573,6 @@ static void txc_pa2240_ps_report_event(struct i2c_client *client)
 		}
 		data->pdata_min = min(data->pdata_min, data->ps_data);
 
-#ifdef CONFIG_HUAWEI_DSM
-		txc_pa2240_dsm_change_ps_enable_status(data);
-#endif
-
 		/*If user touch TP or oil occure or user continously move away, update far_ps_min*/
 		if((data->oil_occur) || (far_ps_min > data->ps_data)){
 			far_ps_min = data->ps_data;
@@ -1007,10 +591,6 @@ static void txc_pa2240_ps_report_event(struct i2c_client *client)
 			input_sync(data->input_dev_ps);
 			TXC_PA2240_INFO("%s,line %d:PROXIMITY close event\n", __func__,__LINE__);
 		}
-
-#ifdef CONFIG_HUAWEI_DSM
-		txc_pa2240_dsm_change_ps_enable_status(data);
-#endif
          /*User is not close to TP*/
 		if (data->ps_data < PA2240_PDATA_TOUCH_VAL){
 			data->pilt = ((far_ps_min + middle_threshold) < data->ps_data)  ?  (far_ps_min + middle_threshold) : (data->ps_data -oil_effect);
@@ -1022,9 +602,6 @@ static void txc_pa2240_ps_report_event(struct i2c_client *client)
 			data->oil_occur = true;
 		}
 	}else {
-#ifdef CONFIG_HUAWEI_DSM
-		txc_pa2240_dsm_no_update_threhold_check(data);
-#endif
 
 		TXC_PA2240_ERR("%s:%d read pdata Not within reasonable limits,data->pilt=%d,data->piht=%d data->ps_data=%d\n",
 			__FUNCTION__,__LINE__,data->pilt,data->piht,data->ps_data);
@@ -1452,9 +1029,6 @@ static int txc_pa2240_open_ps_sensor(struct txc_pa2240_data *data, struct i2c_cl
 		data->saturation_flag = false;
 		data->oil_occur = false;
 		/*initialize the ps_min_threshold,to update data->piht and data->pilt*/
-#ifdef CONFIG_HUAWEI_DSM
-		txc_pa2240_dsm_save_threshold(data, far_init, near_init);
-#endif
 		ret = txc_pa2240_get_ps(client);
 		if (ret != 0x82) {
 		TXC_PA2240_ERR("%s line %d: instant power off, REG_PS_SET=0x%02x\n", __func__, __LINE__, ret);
@@ -1515,9 +1089,6 @@ static int txc_pa2240_enable_ps_sensor(struct i2c_client *client,unsigned int va
 			TXC_PA2240_ERR("%s,line %d:read power_value failed,open ps fail\n",__func__,__LINE__);
 			return ret;
 		}
-#ifdef CONFIG_HUAWEI_DSM
-        txc_pa2240_dsm_no_irq_check(data);
-#endif
 
 		power_key_ps = false;
 		schedule_delayed_work(&data->powerkey_work, msecs_to_jiffies(100));
@@ -1541,10 +1112,6 @@ static int txc_pa2240_enable_ps_sensor(struct i2c_client *client,unsigned int va
 				irq_set_irq_wake(data->irq, 0);
 				operate_irq(data,0,true);
 			}
-
-#ifdef CONFIG_HUAWEI_DSM
-		txc_pa2240_dsm_change_ps_enable_status(data);
-#endif
 
 		}
 	}
@@ -1795,9 +1362,6 @@ static struct attribute *txc_pa2240_attributes[] = {
 	&dev_attr_ps_calibration.attr,
 	&dev_attr_txc_pa2240_calibration.attr,
 	&dev_attr_txc_pa2240_calibration_result.attr,
-#ifdef CONFIG_HUAWEI_DSM
-	&dev_attr_dsm_excep.attr,
-#endif
 	NULL
 };
 
@@ -2420,11 +1984,6 @@ static int txc_pa2240_probe(struct i2c_client *client,
 
 	if (pdata->power_on)
 		err = pdata->power_on(true,data);
-#ifdef CONFIG_HUAWEI_DSM
-	err = txc_pa2240_dsm_init(data);
-	if(err < 0)
-		goto exit_uninit;
-#endif
 
 	i2c_set_clientdata(client, data);
 	txc_pa2240_parameter_init(data);
@@ -2432,12 +1991,10 @@ static int txc_pa2240_probe(struct i2c_client *client,
 	err = txc_pa2240_pinctrl_init(data);
 	if (err) {
 		TXC_PA2240_ERR("%s,line %d:Can't initialize pinctrl\n",__func__,__LINE__);
-			goto exit_unregister_dsm;
 	}
 	err = pinctrl_select_state(data->pinctrl, data->pin_default);
 	if (err) {
 		TXC_PA2240_ERR("%s,line %d:Can't select pinctrl default state\n",__func__,__LINE__);
-		goto exit_unregister_dsm;
 	}
 
 	data->i2c_ready_flag = true;
@@ -2451,12 +2008,7 @@ static int txc_pa2240_probe(struct i2c_client *client,
 	err = txc_pa2240_init_client(client);
 	if (err) {
 		TXC_PA2240_ERR("%s: Failed to init txc_pa2240\n", __func__);
-		goto exit_unregister_dsm;
 	}
-
-	err = txc_pa2240_input_init(data);
-	if(err)
-		goto exit_unregister_dsm;
 
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &txc_pa2240_attr_group);
@@ -2518,13 +2070,6 @@ exit_remove_sysfs_group:
 	sysfs_remove_group(&client->dev.kobj, &txc_pa2240_attr_group);
 exit_unregister_dev_ps:
 	input_unregister_device(data->input_dev_ps);
-#ifdef CONFIG_HUAWEI_DSM
-exit_unregister_dsm:
-	txc_pa2240_dsm_exit();
-exit_uninit:
-#else
-exit_unregister_dsm:
-#endif
 	if (pdata->power_on)
 		pdata->power_on(false,data);
 	if (pdata->exit)
@@ -2550,10 +2095,6 @@ static int txc_pa2240_remove(struct i2c_client *client)
 	input_unregister_device(data->input_dev_ps);
 
 	free_irq(client->irq, data);
-#ifdef CONFIG_HUAWEI_DSM
-	txc_pa2240_dsm_exit();
-#endif
-
 	if (pdata->power_on)
 		pdata->power_on(false,data);
 

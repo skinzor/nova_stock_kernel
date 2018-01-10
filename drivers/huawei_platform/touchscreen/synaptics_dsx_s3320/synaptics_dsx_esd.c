@@ -3,9 +3,6 @@
 
 #include <linux/init.h>
 #include <linux/printk.h>
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
 #include <linux/delay.h>
 #include "synaptics_dsx_i2c.h"
 #include <linux/kernel.h>
@@ -20,9 +17,6 @@
 #include "synaptics_dsx.h"
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
 
 #include "synaptics_dsx_esd.h"
 
@@ -66,9 +60,6 @@ static void synaptics_esd_work(struct work_struct *work)
 	if (ret <= 0 && i == SYNAPTICS_ESD_RETRY_TIMES)
 	{
 		tp_log_err("%s %d:synaptics ic is dead\n", __func__, __LINE__);
-#ifdef CONFIG_HUAWEI_DSM
-		synp_tp_report_dsm_err(DSM_TP_ESD_ERROR_NO, ret);
-#endif/*CONFIG_HUAWEI_DSM*/
 		synaptics_dsx_hardware_reset(g_rmi4_data);
 	}
 	else
@@ -201,22 +192,3 @@ void synaptics_dsx_esd_resume(void)
 	tp_log_debug("%s %d:synaptics esd check resume, count = %d\n", 
 				__func__, __LINE__, resume_count + 1);
 }
-
-/*****************************************************************
-Parameters    :  err_num
-Return        :    
-Description   :  save esd error to dsm
-*****************************************************************/
-#ifdef CONFIG_HUAWEI_DSM
-ssize_t synaptics_dsm_record_esd_err_info( int err_num )
-{
-
-	ssize_t size = 0;
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	/* esd err number */
-	size =dsm_client_record(tp_dclient, "esd err number:%d\n", err_num);
-
-	return size;
-}
-#endif/*CONFIG_HUAWEI_DSM*/

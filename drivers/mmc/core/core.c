@@ -4244,15 +4244,6 @@ static int __init mmc_init(void)
 	if (ret)
 		goto unregister_host_class;
 
-	dentry_mmclog = debugfs_create_dir("hw_mmclog", NULL);
-	if(dentry_mmclog ) {
-		debugfs_create_file("rwlog_enable", S_IFREG|S_IRWXU|S_IRGRP|S_IROTH,
-			dentry_mmclog, NULL, &rwlog_enable_fops);
-		debugfs_create_file("rwlog_index", S_IFREG|S_IRWXU|S_IRGRP|S_IROTH,
-			dentry_mmclog, NULL, &rwlog_index_fops);
-		debugfs_create_file("debug_mask", S_IFREG|S_IRWXU|S_IRGRP|S_IROTH,
-			dentry_mmclog, NULL, &debug_mask_fops);
-	}
 	return 0;
 
 unregister_host_class:

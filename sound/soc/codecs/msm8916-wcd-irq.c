@@ -385,11 +385,6 @@ bool wcd9xxx_spmi_lock_sleep(void)
 			__func__,
 			WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS, map.pm_state,
 			map.wlock_holders);
-		if (mbhc_sw_flag) {
-			audio_dsm_report_info(DSM_AUDIO_CODEC_RESUME_FAIL_ERROR,
-				 "%s pm_state = %d, wlock_holders = %d\n",
-				 __func__, map.pm_state, map.wlock_holders);
-		}
 		wcd9xxx_spmi_unlock_sleep();
 		return false;
 	}

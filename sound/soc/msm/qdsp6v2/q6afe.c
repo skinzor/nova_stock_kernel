@@ -357,8 +357,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 				atomic_set(&this_afe.status, payload[1]);
 				pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
 					__func__, payload[0], payload[1]);
-				audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO,
-								DSM_AUDIO_MESG_DSP_CMD_ERROR);
 			}
 			switch (payload[0]) {
 			case AFE_PORT_CMD_SET_PARAM_V2:
@@ -4482,8 +4480,6 @@ int afe_dsm_param_ctrl(uint32_t dir, uint32_t size, uint8_t *payload)
 	ret = apr_send_pkt(this_afe.apr,
 					(dir) ? (uint32_t *) (set_cfg) : (uint32_t *)(get_cfg));
 	if (ret < 0) {
-		audio_dsm_report_info(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO,
-			 "%s: maxim dsm apr_send_pkt(%d) failed\n", __func__, ret);
 		pr_err("%s: failed %d\n", __func__,  ret);
 		goto fail_cmd;
 	}
@@ -4492,8 +4488,6 @@ int afe_dsm_param_ctrl(uint32_t dir, uint32_t size, uint8_t *payload)
 		0 == (atomic_read(&this_afe.state)),
 		msecs_to_jiffies(TIMEOUT_MS));
 	if (!ret) {
-		audio_dsm_report_info(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO,
-			 "%s: maxim dsm wait timeout\n", __func__);
 		pr_err("%s: wait_event timeout\n", __func__);
 		ret = -EINVAL;
 		goto fail_cmd;
@@ -5029,9 +5023,6 @@ int afe_set_digital_codec_core_clock(u16 port_id,
 			(atomic_read(&this_afe.state) == 0),
 			msecs_to_jiffies(TIMEOUT_MS));
 	if (!ret) {
-		audio_dsm_report_info(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO,
-			 "%s ret = %d, freq = %d MHz, root = %d",
-			 __func__, ret, clk_cfg.clk_cfg.clk_val, clk_cfg.clk_cfg.clk_root);
 		pr_err("%s: wait_event timeout\n", __func__);
 		ret = -EINVAL;
 		goto fail_cmd;
@@ -5122,8 +5113,6 @@ int afe_set_lpass_clock(u16 port_id, struct afe_clk_cfg *cfg)
 			(atomic_read(&this_afe.state) == 0),
 			msecs_to_jiffies(TIMEOUT_MS));
 	if (!ret) {
-		audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO,
-								DSM_AUDIO_MESG_SET_LPASSCLK_FAIL);
 		pr_err("%s: wait_event timeout\n", __func__);
 		ret = -EINVAL;
 		goto fail_cmd;

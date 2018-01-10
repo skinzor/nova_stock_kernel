@@ -30,11 +30,6 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/qpnp/power-on.h>
 
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#include <linux/hw_lcd_common.h>
-#endif
-
 #include <soc/qcom/smsm.h>
 
 #include <linux/kallsyms.h>
@@ -308,13 +303,6 @@ static const char * const qpnp_poff_reason[] = {
 	[38] = "Triggered from S3_RESET_PBS_NACK",
 	[39] = "Triggered from S3_RESET_KPDPWR_ANDOR_RESIN (power key and/or reset line)",
 };
-
-#ifdef CONFIG_HUAWEI_DSM
-struct lcd_pwr_status_t lcd_pwr_status = {
-	.panel_power_on = 1,
-	.lcd_dcm_pwr_status = 0x0F,
-};
-#endif
 
 /*
  * On the kernel command line specify
@@ -854,27 +842,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		power_key_ps = true;
 	}
 
-#ifdef CONFIG_HUAWEI_DSM
-	/*optimize 20110 report strategy for device monitor.*/
-	/*when device wake up,we enable the timer,3 senconds later report the lcd power status if work abnormally*/
-	if((cfg->key_code == POWERKEY_KEYCODE) && (key_status == KEY_DOWN_S) && (lcd_pwr_status.panel_power_on== 0))
-	{
-		del_timer(&lcd_pwr_status.lcd_dsm_t);
-		lcd_pwr_status.lcd_dsm_t.function = lcd_dcm_pwr_status_handler;
-		lcd_pwr_status.lcd_dsm_t.data = 0;
-		lcd_pwr_status.lcd_dsm_t.expires = jiffies + 3*HZ;
-		add_timer(&lcd_pwr_status.lcd_dsm_t);
-	}
-	/*(lcd_dcm_pwr_status & 0x000f) >> 3 == 1 means lcd  power on*/
-	/*when device suspend,del the timer*/
-	else if((cfg->key_code == POWERKEY_KEYCODE) && (key_status == KEY_DOWN_S) && (lcd_pwr_status.panel_power_on== 1))
-	{
-		del_timer(&lcd_pwr_status.lcd_dsm_t);
-		/* clear dcm_pwr_status when del timer */
-		lcd_pwr_status.lcd_dcm_pwr_status = 0;
-	}
-#endif
-
 	cfg->old_state = !!key_status;
 
 	return 0;
@@ -913,8 +880,8 @@ static irqreturn_t qpnp_kpdpwr_bark_irq(int irq, void *_pon)
 	/* clear dload mode to reduce false triggering dump*/
 	clear_dload_mode();
 #endif
-	schedule_delayed_work(&pon->long_press_bark_work, QPNP_LONG_PRESS_DELAY);
-	pr_info("long press power key have detected!\n");
+	/*schedule_delayed_work(&pon->long_press_bark_work, QPNP_LONG_PRESS_DELAY);
+	pr_info("long press power key have detected!\n");*/
 
 	return IRQ_HANDLED;
 }
@@ -2325,10 +2292,6 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);
 
 	INIT_DELAYED_WORK(&pon->long_press_bark_work, long_press_bark_work_func);
-
-#ifdef CONFIG_HUAWEI_DSM
-	init_timer(&lcd_pwr_status.lcd_dsm_t);
-#endif
 
 	/* register the PON configurations */
 	rc = qpnp_pon_config_init(pon);

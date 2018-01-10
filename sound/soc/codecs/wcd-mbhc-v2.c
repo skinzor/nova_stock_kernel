@@ -607,15 +607,6 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 	if (insertion) {
 		/*timeout after 500ms*/
 		timeout_jiffies = jiffies + msecs_to_jiffies(DSM_AUDIO_LESS_HS_GAP);
-	} else {
-		if (time_before(jiffies, timeout_jiffies)) {
-			if (ispress)
-				audio_dsm_report_num(DSM_AUDIO_HANDSET_PRESS_RELEASE_ERROR,
-							DSM_AUDIO_MESG_PRESS_RELEASE_ERROR);
-			else
-				audio_dsm_report_num(DSM_AUDIO_HANDSET_PLUG_RELEASE_ERROR,
-							DSM_AUDIO_MESG_INSURT_TIME_SHORT);
-		}
 	}
 	ispress = false;
 
@@ -1480,11 +1471,6 @@ report:
 		goto exit;
 	}
 
-	if (MBHC_PLUG_TYPE_INVALID == plug_type) {
-		audio_dsm_report_num(DSM_AUDIO_HANDSET_DECT_FAIL_ERROR_NO,
-							DSM_AUDIO_MESG_HS_TYPE_DECT_FAIL);
-	}
-
 	if (plug_type == MBHC_PLUG_TYPE_GND_MIC_SWAP && mbhc->btn_press_intr) {
 		pr_debug("%s: insertion of headphone with swap\n", __func__);
 		wcd_cancel_btn_work(mbhc);
@@ -2191,11 +2177,6 @@ static irqreturn_t wcd_mbhc_btn_press_handler(int irq, void *data)
 	}
 	mbhc->btn_press_intr = true;
 	if (time_before(jiffies, timeout_jiffies)) {
-		if (!ispress) {
-			audio_dsm_report_num(DSM_AUDIO_HANDSET_PLUG_PRESS_ERROR,
-								DSM_AUDIO_MESG_PLUG_PRESS_ERROR);
-		}
-	} else {
 		timeout_jiffies = jiffies + msecs_to_jiffies(DSM_AUDIO_LESS_HS_GAP);
 		ispress = true;
 	}

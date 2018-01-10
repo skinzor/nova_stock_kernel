@@ -4,12 +4,6 @@
 #ifndef _SENSOR_OTP_COMMON_IF_H
 #define _SENSOR_OTP_COMMON_IF_H
 
-#ifdef CONFIG_HUAWEI_DSM
-#include "msm_camera_dsm.h"
-#define OTP_WRITE_I2C_ERR 0
-#define OTP_READ_I2C_ERR 1
-#endif
-
 struct otp_function_t {
 	char sensor_name[32];
 	int (*sensor_otp_function) (struct msm_sensor_ctrl_t *s_ctrl, int index);
@@ -18,10 +12,6 @@ struct otp_function_t {
 
 	bool is_boot_load; //whether load otp info when booting.
 };
-
-#ifdef CONFIG_HUAWEI_DSM
-void camera_report_dsm_err_otp(struct msm_sensor_ctrl_t *s_ctrl, int type, uint32_t addr , int flag);
-#endif
 
 extern bool is_exist_otp_function(struct msm_sensor_ctrl_t *sctl, int32_t *index);
 

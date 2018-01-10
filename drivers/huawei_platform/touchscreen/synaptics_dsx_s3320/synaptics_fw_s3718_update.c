@@ -2247,13 +2247,6 @@ int synaptics_s3718_fw_upgrade(unsigned char *fw_data)
 
 	retval = fwu_start_reflash();
 
-#ifdef CONFIG_HUAWEI_DSM
-	/* if fw upgrade err, report err */
-	if(retval<0) {
-		//synp_tp_report_dsm_err(DSM_TP_FWUPDATE_ERROR_NO, retval);
-	}
-#endif/*CONFIG_HUAWEI_DSM*/
-
 	pm_runtime_put(&fwu->rmi4_data->i2c_client->dev);
 
 

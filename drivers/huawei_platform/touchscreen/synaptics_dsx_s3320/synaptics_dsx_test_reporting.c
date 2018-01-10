@@ -34,9 +34,6 @@
 
 #include "synaptics_dsx_esd.h"
 #include <linux/proc_fs.h>
-#ifdef CONFIG_HUAWEI_DSM
-#include <dsm/dsm_pub.h>
-#endif/*CONFIG_HUAWEI_DSM*/
 /*move mmi limit to here*/
 #ifdef MMITEST
 /*Default config*/
@@ -1994,42 +1991,6 @@ static struct synaptics_rmi4_f55_handle *f55;
 DECLARE_COMPLETION(f54_remove_complete);
 
 static struct synaptics_rmi4_fn_desc *g_rmi_fd = NULL;
-#ifdef CONFIG_HUAWEI_DSM
-ssize_t synaptics_dsm_f54_pdt_err_info( int err_numb )
-{
-
-	ssize_t size = 0;
-	ssize_t total_size = 0;
-	struct dsm_client *tp_dclient = tp_dsm_get_client();
-
-	/* F54 read pdt err number */
-	size =dsm_client_record(tp_dclient, "F54 read pdt err number:%d\n", err_numb );
-	total_size += size;
-	
-	/* F54 record pdt err info */
-	if(NULL != g_rmi_fd)
-	{
-		size = dsm_client_record(tp_dclient, 
-					"struct synaptics_rmi4_fn_desc{\n"
-					" query_base_addr       :%d\n"
-					" cmd_base_addr         :%d\n"
-					" ctrl_base_addr        :%d\n"
-					" data_base_addr        :%d\n"
-					" intr_src_count(3)     :%d\n"
-					" fn_number             :%d\n"
-					"}\n",
-					g_rmi_fd->query_base_addr,
-					g_rmi_fd->cmd_base_addr,
-					g_rmi_fd->ctrl_base_addr,
-					g_rmi_fd->data_base_addr,
-					g_rmi_fd->intr_src_count,
-					g_rmi_fd->fn_number);
-		total_size += size;
-	}
-
-	return total_size;
-}
-#endif/*CONFIG_HUAWEI_DSM*/
 
 static bool is_report_type_valid(enum f54_report_types report_type)
 {
@@ -7718,10 +7679,6 @@ pdt_done:
 			goto init_f54_f55;
 		}
 
-		/* report to device_monitor */
-#ifdef CONFIG_HUAWEI_DSM
-		synp_tp_report_dsm_err(DSM_TP_F54_PDT_ERROR_NO, retval);
-#endif/*CONFIG_HUAWEI_DSM*/
 		tp_log_err("%s: line(%d) f54/f55 NOT found. Error.\n",__func__,__LINE__);
 		retval = -ENODEV;
 		goto exit_free_mem;

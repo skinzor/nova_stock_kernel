@@ -23,9 +23,6 @@
 
 #include "cyttsp5_regs.h"
 #include "cyttsp5_platform.h"
-#ifdef CONFIG_HUAWEI_DSM
-extern struct tp_dsm_info g_tp_dsm_info;
-#endif/*CONFIG_HUAWEI_DSM*/
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_FW_UPGRADE
 /* FW for Panel ID = 0x00 */
 #include "cyttsp5_fw_pid00.h"
@@ -216,11 +213,6 @@ int cyttsp5_init(struct cyttsp5_core_platform_data *pdata,
 		tp_log_err("%s %d:input parameter missing\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	g_tp_dsm_info.rst_gpio = rst_gpio;
-	g_tp_dsm_info.irq_gpio = irq_gpio;
-#endif/*CONFIG_HUAWEI_DSM*/
 
 	if (on) {
 		rc = gpio_request(rst_gpio, "ts_reset");

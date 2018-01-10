@@ -47,10 +47,6 @@
 
 #include <misc/app_info.h>
 #include <linux/debugfs.h>
-#ifdef CONFIG_HUAWEI_DSM
-#include 	<dsm/dsm_pub.h>
-#define CLIENT_NAME_ALS_BH1745		"dsm_als_bh1745"
-#endif
 #define PARSE_DTSI_NUMBER                               (61)
 #define JUDEG_COEFF   (1000)
 #ifdef CONFIG_SENSOR_DEVELOP_TEST
@@ -147,19 +143,6 @@ module_param_named(rgb_bh1745_debug, rgb_bh1745_debug_mask, int, S_IRUGO | S_IWU
     if (rgb_bh1745_debug_mask >=2) \
         printk(KERN_ERR x);\
     } while (0)
-#ifdef CONFIG_HUAWEI_DSM
- struct als_test_excep{
-	int i2c_scl_val;		/* when i2c transfer err, read the gpio value*/
-	int i2c_sda_val;
-	int vdd_mv;
-	int vdd_status;
-	int vio_mv;
-	int vio_status;
-	int i2c_err_num;
-	int excep_num;
-	char *reg_buf;
-};
-#endif
 static const char *data_array_name[MODULE_MANUFACTURE_NUMBER] = {
 	[0] = "bh1745,cal_data0",
 	[1] = "bh1745,cal_data1",
@@ -229,9 +212,6 @@ struct rgb_bh1745_data {
 	struct rgb_bh1745_platform_data *platform_data;
 
 	struct rgb_bh1745_rgb_data rgb_data;
-#ifdef CONFIG_HUAWEI_DSM
-	struct als_test_excep als_test_exception;
-#endif
 	int irq;
 
 	struct hrtimer timer;
@@ -287,165 +267,6 @@ static int rgb_bh1745_init_client(struct i2c_client *client);
 static int rgb_bh1745_i2c_read(struct i2c_client*client, u8 reg,bool flag);
 static int parse_tp_color_and_module_manufacture(struct rgb_bh1745_data *data);
 static int als_polling_count=0;
-#ifdef CONFIG_HUAWEI_DSM
-
-static struct dsm_client *bh1745_als_dclient = NULL;
-
-/* dsm client for als sensor */
-static struct dsm_dev dsm_als_bh1745 = {
-	.name 		= CLIENT_NAME_ALS_BH1745,		// dsm client name
-	.fops 		= NULL,						      // options
-	.buff_size 	= DSM_SENSOR_BUF_MAX,			// buffer size
-};
-
-static int bh1745_dsm_report_err(int errno,struct rgb_bh1745_data *data)
-{
-	int size = 0;
-	struct als_test_excep *excep = &data->als_test_exception;
-
-	if(dsm_client_ocuppy(bh1745_als_dclient)){
-		/* buffer is busy */
-		BH1745_ERR("%s: buffer is busy!, errno = %d\n", __func__,errno);
-		return -EBUSY;
-	}
-
-	BH1745_INFO("dsm error, errno = %d \n", errno);
-
-	size = dsm_client_record(bh1745_als_dclient,
-				"i2c_scl_val=%d,i2c_sda_val=%d,vdd = %d, vdd_status = %d\n"
-				"vio=%d, vio_status=%d, excep_num=%d, i2c_err_num=%d\n"
-				,excep->i2c_scl_val,excep->i2c_sda_val,excep->vdd_mv,excep->vdd_status
-				,excep->vio_mv,excep->vio_status,excep->excep_num,excep->i2c_err_num);
-
-	/*if device is not probe successfully or client is null, don't notify dsm work func*/
-	if(data->device_exist == false || bh1745_als_dclient == NULL){
-		return -ENODEV;
-	}
-
-	dsm_client_notify(bh1745_als_dclient, errno);
-
-
-	return size;
-}
-
-
-static int bh1745_i2c_exception_status(struct rgb_bh1745_data *data)
-{
-	int ret = 0;
-	/* print pm status and i2c gpio status*/
-	struct als_test_excep *excep = &data->als_test_exception;
-
-	if (data->vdd == NULL) {
-		return -ENXIO;
-	}
-
-	if (data->vio == NULL) {
-		return -ENXIO;
-	}
-
-	/* read i2c_sda i2c_scl gpio value*/
-	mutex_lock(&data->update_lock);
-	excep->i2c_scl_val = gpio_get_value(data->platform_data->i2c_scl_gpio);
-	excep->i2c_sda_val = gpio_get_value(data->platform_data->i2c_sda_gpio);
-	mutex_unlock(&data->update_lock);
-
-	/* get regulator's status*/
-	excep->vdd_status = regulator_is_enabled(data->vdd);
-	if(excep->vdd_status < 0){
-		BH1745_ERR("%s,line %d:regulator_is_enabled vdd failed\n",__func__,__LINE__);
-	}
-	excep->vio_status = regulator_is_enabled(data->vio);
-	if(excep->vio_status < 0){
-		BH1745_ERR("%s,line %d:regulator_is_enabled vio failed\n",__func__,__LINE__);
-	}
-
-	/* get regulator's value*/
-	excep->vdd_mv = regulator_get_voltage(data->vdd)/1000;
-	if(excep->vdd_mv < 0){
-		BH1745_ERR("%s,line %d:regulator_get_voltage vdd failed\n",__func__,__LINE__);
-	}
-
-	excep->vio_mv = regulator_get_voltage(data->vio)/1000;
-	if(excep->vio_mv < 0){
-		BH1745_ERR("%s,line %d:regulator_get_voltage vio failed\n",__func__,__LINE__);
-	}
-
-	/* report i2c err info */
-	ret = bh1745_dsm_report_err(DSM_LPS_I2C_ERROR,data);
-	if(ret <= 0){
-		BH1745_ERR("%s:probe did not succeed or bh1745_als_dclient is NULL",__func__);
-		return ret;
-	}
-
-	BH1745_INFO("%s,line %d:i2c_scl_val=%d,i2c_sda_val=%d,vdd = %d, vdd_status = %d\n"
-			"vio=%d, vio_status=%d, excep_num=%d, i2c_err_num=%d",__func__,__LINE__
-			,excep->i2c_scl_val,excep->i2c_sda_val,excep->vdd_mv,excep->vdd_status
-			,excep->vio_mv,excep->vio_status,excep->excep_num,excep->i2c_err_num);
-
-	excep->i2c_err_num = 0;
-
-	return ret;
-
-}
-
-static void bh1745_report_i2c_info(struct rgb_bh1745_data* data, int err)
-{
-	int ret = 0;
-	data->als_test_exception.i2c_err_num = err;
-	ret = bh1745_i2c_exception_status(data);
-	if(ret <= 0){
-		BH1745_ERR("%s:ret = %d,bh1745_i2c_exception_status failed\n",__func__,ret);
-	}
-}
-
-static int bh1745_dsm_init(struct rgb_bh1745_data *data)
-{
-	bh1745_als_dclient = dsm_register_client(&dsm_als_bh1745);
-	if (!bh1745_als_dclient) {
-		BH1745_ERR("%s@%d register dsm bh1745_als_dclient failed!\n",__func__,__LINE__);
-		return -ENOMEM;
-	}
-	/*for dmd*/
-	//bh1745_als_dclient->driver_data = data;
-
-	data->als_test_exception.reg_buf = kzalloc(512, GFP_KERNEL);
-	if(!data->als_test_exception.reg_buf){
-		BH1745_ERR("%s@%d alloc dsm reg_buf failed!\n",__func__,__LINE__);
-		dsm_unregister_client(bh1745_als_dclient,&dsm_als_bh1745);
-		return -ENOMEM;
-	}
-
-	return 0;
-
-}
-
-/*
-*  test data or i2c error interface for device monitor
-*/
-static ssize_t bh1745_sysfs_dsm_test(struct device *dev, struct device_attribute *attr,
-						const char *buf, size_t count)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct rgb_bh1745_data *data = i2c_get_clientdata(client);
-	long mode;
-	int ret = 0;
-
-	if (strict_strtol(buf, 10, &mode))
-			return -EINVAL;
-
-
-	if(DSM_LPS_I2C_ERROR == mode){
-		ret = bh1745_i2c_exception_status(data);
-	}
-	else{
-		BH1745_ERR("%s unsupport err_no = %ld \n", __func__, mode);
-	}
-
-	return ret;
-}
-
-static DEVICE_ATTR(dsm_excep,S_IWUSR|S_IWGRP, NULL, bh1745_sysfs_dsm_test);
-#endif
 /*we use the unified the function for i2c write and read operation*/
 static int rgb_bh1745_i2c_write(struct i2c_client*client, u8 reg, u16 value,bool flag)
 {
@@ -477,11 +298,6 @@ static int rgb_bh1745_i2c_write(struct i2c_client*client, u8 reg, u16 value,bool
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		BH1745_ERR("%s,line %d:attention:i2c write err = %d\n",__func__,__LINE__,err);
-#ifdef CONFIG_HUAWEI_DSM
-		if(data->device_exist){
-			bh1745_report_i2c_info(data,err);
-		}
-#endif
 	}
 
 	return err;
@@ -517,11 +333,6 @@ static int rgb_bh1745_i2c_read(struct i2c_client*client, u8 reg,bool flag)
 	/*after three times,we print the register and regulator value*/
 	if(loop == 0){
 		BH1745_ERR("%s,line %d:attention: i2c read err = %d,reg=0x%x\n",__func__,__LINE__,err,reg);
-#ifdef CONFIG_HUAWEI_DSM
-		if(data->device_exist){
-			bh1745_report_i2c_info(data,err);
-		}
-#endif
 
 	}
 
@@ -1701,9 +1512,6 @@ static struct attribute *rgb_bh1745_attributes[] = {
 	&dev_attr_module_tpcolor.attr,
 	&dev_attr_dump_tp_parameters.attr,
 	&dev_attr_rh1745_als_calibrate.attr,
-#ifdef CONFIG_HUAWEI_DSM
-	&dev_attr_dsm_excep.attr,
-#endif
 	NULL
 };
 
@@ -2194,11 +2002,6 @@ static int rgb_bh1745_probe(struct i2c_client *client,
 
 	if (pdata->power_on)
 		err = pdata->power_on(true,data);
-#ifdef CONFIG_HUAWEI_DSM
-	err = bh1745_dsm_init(data);
-	if(err < 0)
-		goto exit_power_off;
-#endif
 	i2c_set_clientdata(client, data);
 	rgb_bh1745_parameter_init(data);
 	/* initialize pinctrl */
@@ -2314,9 +2117,6 @@ static int rgb_bh1745_remove(struct i2c_client *client)
 
 	free_irq(client->irq, data);
 	hrtimer_cancel(&data->timer);
-#ifdef  CONFIG_HUAWEI_DSM
-	dsm_unregister_client(bh1745_als_dclient,&dsm_als_bh1745);
-#endif
 	if (pdata->power_on)
 		pdata->power_on(false,data);
 
