@@ -16,11 +16,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/notifier.h>
 
-#ifdef CONFIG_HUAWEI_EMMC_DSM
-#define EXT_CSD_PRE_EOL_INFO_NORMAL     0x01
-#define EXT_CSD_PRE_EOL_INFO_WARNING     0x02
-#define EXT_CSD_PRE_EOL_INFO_URGENT     0x03
-#endif
 #define MMC_CARD_CMDQ_BLK_SIZE 512
 
 struct mmc_cid {
@@ -133,11 +128,6 @@ struct mmc_ext_csd {
 #define MMC_BKOPS_URGENCY_MASK 0x3
 	u8			raw_bkops_status;	/* 246 */
 	u8			raw_sectors[4];		/* 212 - 4 bytes */
-#ifdef CONFIG_HUAWEI_EMMC_DSM
-	u8			pre_eol_info;	/* 267 */
-	u8			device_life_time_est_typ_a;	/* 268 */
-	u8			device_life_time_est_typ_b;	/* 269 */
-#endif
 	u8			cmdq_depth;		/* 307 */
 	u8			cmdq_support;		/* 308 */
 	u8			barrier_support;	/* 486 */
