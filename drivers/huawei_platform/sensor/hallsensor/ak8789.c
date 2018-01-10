@@ -51,10 +51,6 @@
 #include <linux/hw_dev_dec.h>
 #endif
 
-#ifdef CONFIG_LOG_JANK
-#include <huawei_platform/log/log_jank.h>
-#endif
-
 #ifdef CONFIG_HUAWEI_DSM
 //#include <linux/dsm_pub.h>
 #endif
@@ -325,12 +321,6 @@ static ssize_t ak8789_store_enable_hall_sensor(struct device *dev,
 		/*enable the hall device*/
 		atomic_set(&hall_enable_status, 1);
 		value = query_hall_event();
-#ifdef CONFIG_LOG_JANK
-		if(!value)
-		{
-			LOG_JANK_D(JLID_COVER_SENSOR_OPEN, "%s", "JL_COVER_SENSOR_OPEN");
-		}
-#endif
 		input_event(hw_hall_dev.hw_input_hall, EV_MSC, MSC_SCAN, value);
 		input_sync(hw_hall_dev.hw_input_hall);
 		gpio_ptr = hw_hall_dev.gpio_data;
@@ -394,12 +384,6 @@ static ssize_t ak8789_show_get_hall_status(struct device *dev,
 {
 	int value = 0;
 	value = query_hall_event();
-#ifdef CONFIG_LOG_JANK
-	if(!value)
-	{
-		LOG_JANK_D(JLID_COVER_SENSOR_OPEN, "%s", "JL_COVER_SENSOR_OPEN");
-	}
-#endif
 	/*report event to hal layer*/
 	input_event(hw_hall_dev.hw_input_hall, EV_MSC, MSC_SCAN, value);
 	input_sync(hw_hall_dev.hw_input_hall);
@@ -510,12 +494,6 @@ void hall_work_func(struct work_struct *work)
 	value = query_hall_event();
 	if((camera_hall_support_is_true == true) && ((value == 0x10) || (value == 0x20)))
 		report_overturn_num += 1; 
-#ifdef CONFIG_LOG_JANK
-	if(!value)
-	{
-		LOG_JANK_D(JLID_COVER_SENSOR_OPEN, "%s", "JL_COVER_SENSOR_OPEN");
-	}
-#endif
 	input_event(hw_hall_dev.hw_input_hall, EV_MSC, MSC_SCAN, value);
 	input_sync(hw_hall_dev.hw_input_hall);
 	atomic_dec(&irq_no_at);

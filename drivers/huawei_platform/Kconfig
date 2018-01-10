@@ -24,5 +24,4 @@ config HUAWEI_TOUCH_SCREEN
 source "drivers/huawei_platform/touchscreen/Kconfig"
 source "drivers/huawei_platform/antenna_board_match/Kconfig"
 source "drivers/huawei_platform/antenna_cable/Kconfig"
-source "drivers/huawei_platform/log/Kconfig"
 source "drivers/huawei_platform/antenna_board_gpio_match/Kconfig"

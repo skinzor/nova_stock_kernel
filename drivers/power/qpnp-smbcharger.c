@@ -40,9 +40,6 @@
 #include <linux/ktime.h>
 #include "pmic-voter.h"
 #include <linux/power/huawei_charger.h>
-#ifdef CONFIG_LOG_JANK
-#include <huawei_platform/log/log_jank.h>
-#endif
 #include <linux/power/huawei_dsm_charger.h>
 
 
@@ -7030,14 +7027,12 @@ static irqreturn_t src_detect_handler(int irq, void *_chip)
 		smbchg_stay_awake(chip, PM_CHARGING_CHECK);
 		pr_smb(PR_STATUS, "wake-up sources when inserting charger: 0x%02x \n",chip->wake_reasons);
 		update_usb_status(chip, usb_present, 0);
-		LOG_JANK_D(JLID_USBCHARGING_START,"%s","JL_USBCHARGING_START");
 	} else {
 		/* Clear the awake flag when usb is removed */
 		smbchg_relax(chip, PM_CHARGING_CHECK);
 		pr_smb(PR_STATUS, "wake-up sources when pulling out charger: 0x%02x \n",chip->wake_reasons);
 		update_usb_status(chip, 0, false);
 		chip->aicl_irq_count = 0;
-		LOG_JANK_D(JLID_USBCHARGING_END,"%s","JL_USBCHARGING_END");
 	}
 out:
 	return IRQ_HANDLED;

@@ -50,9 +50,6 @@
 #include <linux/dma-buf.h>
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
-#ifdef CONFIG_LOG_JANK
-#include <huawei_platform/log/log_jank.h>
-#endif
 #define CREATE_TRACE_POINTS
 #include "mdss_debug.h"
 #include "mdss_smmu.h"
@@ -2822,9 +2819,6 @@ static int mdss_fb_open(struct fb_info *info, int user)
 	}
 
 	if (!mfd->ref_cnt) {
-#ifdef CONFIG_LOG_JANK
-		LOG_JANK_D(JLID_KERNEL_LCD_OPEN,"%s", "JL_KERNEL_LCD_OPEN");
-#endif
 		result = mdss_fb_blank_sub(FB_BLANK_UNBLANK, info,
 					   mfd->op_enable);
 		if (result) {

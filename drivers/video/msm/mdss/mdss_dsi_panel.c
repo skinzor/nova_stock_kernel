@@ -26,9 +26,6 @@
 #include "mdss_dsi.h"
 #include "mdss_dba_utils.h"
 
-#ifdef CONFIG_LOG_JANK
-#include <huawei_platform/log/log_jank.h>
-#endif
 #ifdef CONFIG_HUAWEI_KERNEL_LCD
 #include <linux/hw_lcd_common.h>
 #include <huawei_platform/touchscreen/hw_tp_common.h>
@@ -774,7 +771,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		if (lcd_log_flag || (bl_level == 0)) {
 #ifdef CONFIG_LOG_JANK
         if (lcd_log_flag && bl_level){
-                LOG_JANK_D(JLID_KERNEL_LCD_BACKLIGHT_ON,"%s,%d", "JL_KERNEL_LCD_BACKLIGHT_ON",bl_level);
 #ifdef CONFIG_HUAWEI_DSM
                 lcd_pwr_status.lcd_dcm_pwr_status |= BIT(3);
                 do_gettimeofday(&lcd_pwr_status.tvl_backlight);
@@ -904,9 +900,6 @@ end:
 #ifdef CONFIG_HUAWEI_KERNEL_LCD
 	LCD_LOG_INFO("exit %s: panel_on_time = %u\n",
 			__func__,jiffies_to_msecs(jiffies-timeout));
-#ifdef CONFIG_LOG_JANK
-	LOG_JANK_D(JLID_KERNEL_LCD_POWER_ON, "%s", "JL_KERNEL_LCD_POWER_ON");
-#endif
 #endif
 	return ret;
 }
@@ -982,9 +975,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	 LCD_LOG_INFO("exit %s\n",__func__);
 #endif
 
-#ifdef CONFIG_LOG_JANK
-	LOG_JANK_D(JLID_KERNEL_LCD_POWER_OFF, "%s", "JL_KERNEL_LCD_POWER_OFF");
-#endif
 end:
 	pr_debug("%s:-\n", __func__);
 	return 0;

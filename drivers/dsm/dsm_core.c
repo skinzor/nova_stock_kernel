@@ -16,7 +16,6 @@
 #include <linux/kthread.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
-#include <huawei_platform/log/hw_log.h>
 #include "dsm_core.h"
 #include "dsm_lib.h"
 

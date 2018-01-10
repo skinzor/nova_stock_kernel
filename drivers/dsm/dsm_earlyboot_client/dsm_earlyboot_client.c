@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/of_gpio.h>
 #include <linux/kthread.h>
-#include <huawei_platform/log/hw_log.h>
 #include <linux/of.h>
 #include <dsm/dsm_pub.h>
 #include <linux/platform_device.h>
