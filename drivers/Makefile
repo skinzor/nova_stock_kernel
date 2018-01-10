@@ -181,7 +181,6 @@ obj-$(CONFIG_HW_GADGET)     += hwusb/
 
 obj-$(CONFIG_HUAWEI_FACTORY_INFO)	+= hw_fac_info/
 
-obj-$(CONFIG_SRECORDER)     += srecorder/
 obj-$(CONFIG_KRETPROBES) += rphone/
 obj-$(CONFIG_CPU_STRESS_TEST) += cpu_stress/
 # DTS_EAGLE START
