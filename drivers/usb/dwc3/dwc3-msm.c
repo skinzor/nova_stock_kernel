@@ -44,7 +44,6 @@
 #include <linux/clk/msm-clk.h>
 #include <linux/msm-bus.h>
 #include <linux/irq.h>
-#include <linux/power/huawei_dsm_charger.h>
 
 #include "power.h"
 #include "core.h"

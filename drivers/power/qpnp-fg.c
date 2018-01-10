@@ -36,7 +36,6 @@
 #include <linux/alarmtimer.h>
 #include <linux/qpnp/qpnp-revid.h>
 #include <linux/power/huawei_fuelguage.h>
-#include <linux/power/huawei_dsm_charger.h>
 
 /* Register offsets */
 

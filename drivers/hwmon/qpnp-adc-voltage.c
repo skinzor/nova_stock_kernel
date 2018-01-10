@@ -300,53 +300,6 @@ static int get_chg_temp(char *buf, struct kernel_param *kp)
 }
 module_param_call(therm_chg, NULL, get_chg_temp, &therm_chg, 0644);
 
-#ifdef CONFIG_HUAWEI_PMU_DSM
-/* get pa temperature*/
-int dsm_get_pa_temp(void)
-{
-	int rc = 0;
-	struct qpnp_vadc_result results;
-
-	if(pa_mpp_number < 0 || qpnp_vadc == NULL)
-	{
-		return  0;
-	}
-	rc = qpnp_vadc_read(qpnp_vadc,pa_mpp_number, &results);
-	if (rc) {
-		pr_debug("Unable to read pa temperature rc=%d\n", rc);
-		return 0;
-	}
-	pr_debug("get_pa_temp %d %lld\n",
-		results.adc_code, results.physical);
-
-	return (int)results.physical;
-}
-EXPORT_SYMBOL(dsm_get_pa_temp);
-
-/* get cpu temperature*/
-int dsm_get_cpu_temp(void)
-{
-	int rc = 0;
-	struct qpnp_vadc_result results;
-	if(cpu_mpp_number < 0 || qpnp_vadc == NULL)
-	{
-		return 0;
-	}
-
-	rc = qpnp_vadc_read(qpnp_vadc,cpu_mpp_number, &results);
-	if (rc) {
-		pr_debug("Unable to read cpu temperature rc=%d\n", rc);
-		return 0;
-	}
-	pr_debug("get_cpu_temp %d %lld\n",
-		results.adc_code, results.physical);
-
-	return (int)results.physical;
-}
-EXPORT_SYMBOL(dsm_get_cpu_temp);
-#endif
-
-
 int get_pmi_sub_voltage(void)
 {
 	int rc = 0;

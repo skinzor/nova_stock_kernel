@@ -54,10 +54,6 @@
 #endif
 #include "queue.h"
 
-#ifdef CONFIG_HUAWEI_SDCARD_DSM
-#include <linux/mmc/dsm_sdcard.h>
-#endif
-
 #ifdef CONFIG_HUAWEI_EMMC_DSM
 #include <linux/mmc/dsm_emmc.h>
 /*device index, 0: for emmc, 1: for SDcard*/
@@ -3496,11 +3492,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			if (!mmc_blk_reset(md, card->host, 0) &&
 					(retry++ < (MMC_BLK_MAX_RETRIES + 1)))
 					break;
-#ifdef CONFIG_HUAWEI_SDCARD_DSM
-			if(!strcmp(mmc_hostname(card->host), "mmc1"))
-				DSM_SDCARD_LOG(DMS_SDCARD_MMC_BLK_ABORT,\
-					"sdcard manufactory id is 0x%x %s:block transfer abort.\n",sd_manfid,__func__);
-#endif
 			goto cmd_abort;
 		case MMC_BLK_DATA_ERR: {
 			int err;
@@ -4064,12 +4055,6 @@ static void mmc_blk_remove_req(struct mmc_blk_data *md)
 					&md->power_ro_lock);
 
 			del_gendisk(md->disk);
-#ifdef CONFIG_HUAWEI_SDCARD_DSM
-			if(MMC_TYPE_SD == card->type)
-			{
-				dsm_sdcard_cmd_logs[DSM_SDCARD_REPORT_UEVENT].value = DSM_REPORT_UEVENT_FALSE;
-			}
-#endif
 		}
 		mmc_blk_put(md);
 	}
@@ -4280,10 +4265,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
 
-#ifdef CONFIG_HUAWEI_SDCARD_DSM
-	int   buff_len;
-	char *log_buff;
-#endif
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
@@ -4321,13 +4302,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 			goto out;
 	}
 
-#ifdef CONFIG_HUAWEI_SDCARD_DSM
-	if(MMC_TYPE_SD == card->type)
-	{
-		dsm_sdcard_cmd_logs[DSM_SDCARD_REPORT_UEVENT].value = DSM_REPORT_UEVENT_TRUE;
-	}
-#endif
-
 	pm_runtime_set_autosuspend_delay(&card->dev, MMC_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&card->dev);
 
@@ -4343,16 +4317,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 	return 0;
 
  out:
-
- #ifdef CONFIG_HUAWEI_SDCARD_DSM
-	if(MMC_TYPE_SD == card->type && !dsm_client_ocuppy(sdcard_dclient))
-	{
-		log_buff = dsm_sdcard_get_log(DSM_SDCARD_REPORT_UEVENT,0);
-		buff_len = strlen(log_buff);
-		dsm_client_copy(sdcard_dclient,log_buff,buff_len + 1);
-		dsm_client_notify(sdcard_dclient, DSM_SDCARD_NO_UEVENT_REPORT);
-	}
-#endif
 	mmc_blk_remove_parts(card, md);
 	mmc_blk_remove_req(md);
 	return 0;

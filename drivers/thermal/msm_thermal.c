@@ -4005,28 +4005,6 @@ set_freq_exit:
 	return ret;
 }
 
-#ifdef CONFIG_HUAWEI_PMU_DSM
-/* get thermal_zone2(tsens2) and thermal_zone4(tsen5) temerature*/
-int dsm_get_tsens_temp(uint32_t tsensor_id, long *temp)
-{
-	int ret = 0;
-	long *tsen_temp;
-	uint32_t tsen_id;
-
-	tsen_temp = temp;
-	tsen_id = tsensor_id;
-	ret = therm_get_temp(tsen_id, THERM_TSENS_ID, tsen_temp);
-	if (ret) {
-		pr_err("Unable to read temperature for tsen_id:%d. err:%d\n",
-			tsen_id, ret);
-		ret = -EINVAL;
-		return ret;
-	}
-	return ret;
-}
-EXPORT_SYMBOL(dsm_get_tsens_temp);
-#endif
-
 int therm_set_threshold(struct threshold_info *thresh_inp)
 {
 	int ret = 0, i = 0, err = 0;

@@ -43,7 +43,6 @@
 #ifdef CONFIG_LOG_JANK
 #include <huawei_platform/log/log_jank.h>
 #endif
-#include <linux/power/huawei_dsm_charger.h>
 
 
 /* Mask/Bit helpers */

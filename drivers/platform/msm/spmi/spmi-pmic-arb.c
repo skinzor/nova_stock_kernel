@@ -27,7 +27,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/irqchip/qpnp-int.h>
 #include "spmi-dbgfs.h"
-#include <linux/power/huawei_dsm_charger.h>
 
 #define SPMI_PMIC_ARB_NAME		"spmi_pmic_arb"
 

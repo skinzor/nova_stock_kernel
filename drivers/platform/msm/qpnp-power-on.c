@@ -37,10 +37,6 @@
 
 #include <soc/qcom/smsm.h>
 
-#ifdef CONFIG_HUAWEI_PMU_DSM
-#include <linux/power/huawei_dsm_charger.h>
-#endif
-
 #include <linux/kallsyms.h>
 #include <linux/syscalls.h>
 #include <linux/rtc.h>
@@ -171,55 +167,6 @@
 
 #define PON_DIS_PWRKPD_RESET 1
 
-
-#ifdef CONFIG_HUAWEI_PMU_DSM
-#define REASON_MAX		16
-
-#define CHECK_PMU_STATUS_DELAY			msecs_to_jiffies(30000)
-#define PA_CPU_TEMP_THRESH_FAC			75
-#define PA_CPU_TEMP_THRESH			70
-#define TSENS_TEMP_THRESH			90
-#define TSENS_ID2		2
-#define TSENS_ID5		5
-#define PON_REA_SMPL	1
-#define PON_HARD_RESET	0
-#define POFF_REA_TFT			12
-#define POFF_REA_UVLO			13
-#define POFF_REA_PMIC_OVETEMP		14
-#define POFF_REA_STAGE3		15
-#define LDO1_ADDR_BASE			0x14000
-#define LDO_OFFSET				0x100
-#define STATUS1_OFFSET			0x08
-#define STATUS2_OFFSET			0x09
-#define LDO_ON_MASK			0x20
-#define LDO_VOL_MASK			0x80
-#define LDO_NUM					23
-/**/
-#define LDO_EMPTY_NO20			20
-#define LDO_EMPTY_NO21			21
-/*the No. support OCP and the OCP mask bit */
-#define LDO_OCP_MASK			0x40
-#define LDO_OCP_NO4			3
-#define LDO_OCP_NO18			17
-#define LDO_OCP_NO22			21
-
-#define QPNP_LONG_PRESS_DELAY			(0)
-
-/*pmu dsm client definition */
-struct dsm_dev dsm_pmu = {
-	.name = "dsm_pmu", // dsm client name
-	.fops = NULL,
-	.buff_size = 1024, // buffer size
-};
-struct dsm_client *pmu_dclient = NULL;
-
-extern char *saved_command_line;
-
-extern int dsm_get_pa_temp(void);
-extern int dsm_get_cpu_temp(void);
-extern int dsm_get_tsens_temp(uint32_t tsensor_id, long *temp);
-#endif
-
 enum qpnp_pon_version {
 	QPNP_PON_GEN1_V1,
 	QPNP_PON_GEN1_V2,
@@ -267,9 +214,6 @@ struct qpnp_pon {
 	struct list_head	list;
 	struct delayed_work	bark_work;
 	struct delayed_work long_press_bark_work;
-#ifdef CONFIG_HUAWEI_PMU_DSM
-	struct delayed_work dsm_pmu_work;
-#endif
 	struct dentry		*debugfs;
 	int			pon_trigger_reason;
 	int			pon_power_off_reason;
@@ -364,27 +308,6 @@ static const char * const qpnp_poff_reason[] = {
 	[38] = "Triggered from S3_RESET_PBS_NACK",
 	[39] = "Triggered from S3_RESET_KPDPWR_ANDOR_RESIN (power key and/or reset line)",
 };
-
-#ifdef CONFIG_HUAWEI_PMU_DSM
-static const char * const qpnp_pon_warm_reset_reason[] = {
-	[0] = "Triggered by Software",
-	[1] = "Triggered by PS_HOLD",
-	[2] = "Triggered by PMIC Watchdog",
-	[3] = "Triggered by Keypad_Reset1",
-	[4] = "Triggered by Keypad_Reset2",
-	[5] = "Triggered by simultaneous KPDPWR_N + RESIN_N",
-	[6] = "Triggered by RESIN_N",
-	[7] = "Triggered by KPDPWR_N",
-	[8] = "Unknow",
-	[9] = "Unknow",
-	[10] = "Unknow",
-	[11] = "Unknow",
-	[12] = "Triggered AFP",
-	[13] = "Unknow",
-	[14] = "Unknow",
-	[15] = "Unknow",
-};
-#endif
 
 #ifdef CONFIG_HUAWEI_DSM
 struct lcd_pwr_status_t lcd_pwr_status = {
@@ -2128,353 +2051,6 @@ static int read_gen2_pon_off_reason(struct qpnp_pon *pon, u16 *reason,
 	return 0;
 }
 
-#ifdef CONFIG_HUAWEI_PMU_DSM
-/* monitor power-on and power-off reasons, if abnormal, notify to dsm*/
-static void monitor_power_on_off_reason(struct qpnp_pon *pon)
-{
-	int rc, index, index_warm;
-	u8 pon_sts = 0;
-	u8 buf[2]={0};
-	u16 poff_sts = 0;
-	u16 pon_warm_reset_reason = 0;  //0x80A,0x80B
-
-	if(!pon)
-		return;
-
-	/* warm reset reason reg value */
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
-				QPNP_PON_WARM_RESET_REASON1(pon), (u8 *)&pon_warm_reset_reason, 2);
-	if (rc) {
-		pr_err("Unable to read WARM_RESET_RESASON reg\n");
-		return;
-	}
-
-	index_warm = ffs(pon_warm_reset_reason);
-	if ((index_warm > REASON_MAX) || (index_warm < 0))
-		index_warm = 0;
-
-	/* PON reason */
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
-				QPNP_PON_REASON1(pon), &pon_sts, 1);
-	if (rc) {
-		dev_err(&pon->spmi->dev, "Unable to read PON_RESASON1 reg\n");
-		return;
-	}
-
-	index = ffs(pon_sts) - 1;
-	if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0){
-		dev_dbg(&pon->spmi->dev,
-			"PMIC@SID%d Power-on reason: Unknown, reg:0x%x\n",
-			pon->spmi->sid, pon_sts);
-	}else{
-		if(PON_REA_SMPL == index){
-			dev_info(&pon->spmi->dev,
-				"PMIC@SID%d Power-on reason: %s, reg:0x%x\n",
-				pon->spmi->sid, qpnp_pon_reason[index], pon_sts);
-			/* if power on reason is SMPL, record this log, and notify to the dsm server*/
-			if(!dsm_client_ocuppy(pmu_dclient)){
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d Power-on reason: %s, reg:0x%x\n",
-					pon->spmi->sid, qpnp_pon_reason[index], pon_sts);
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d:Warm-reset reason: %s and reg: 0x%x \n",
-					pon->spmi->sid, index_warm?qpnp_pon_warm_reset_reason[index_warm - 1]:
-					"Unknown", pon_warm_reset_reason);
-				dsm_client_notify(pmu_dclient, DSM_ABNORMAL_POWERON_REASON_1);
-			}
-		}
-	}
-
-	/* POFF reason */
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
-				QPNP_POFF_REASON1(pon),
-				buf, 2);
-	if (rc) {
-		dev_err(&pon->spmi->dev, "Unable to read POFF_RESASON regs\n");
-		return;
-	}
-	poff_sts = buf[0] | (buf[1] << 8);
-	index = ffs(poff_sts) - 1;
-	if (index >= ARRAY_SIZE(qpnp_poff_reason) || index < 0){
-		dev_info(&pon->spmi->dev,
-				"PMIC@SID%d: Unknown power-off reason, reg:0x%x\n",
-				pon->spmi->sid, poff_sts);
-	}else{
-		if(POFF_REA_TFT == index){
-			dev_info(&pon->spmi->dev,
-				"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-				pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-			/* if power on reason is TFT, record this log, and notify to the dsm server*/
-			if(!dsm_client_ocuppy(pmu_dclient)){
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-					pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d:Warm-reset reason: %s and reg: 0x%x \n",
-					pon->spmi->sid, index_warm?qpnp_pon_warm_reset_reason[index_warm - 1]:
-					"Unknown", pon_warm_reset_reason);
-				dsm_client_notify(pmu_dclient, DSM_ABNORMAL_POWEROFF_REASON_1);
-			}
-		}
-
-		if(POFF_REA_UVLO == index){
-			dev_info(&pon->spmi->dev,
-				"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-				pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-			uvlo_event_trigger = true;
-			/* if power on reason is UVLO, record this log, and notify to the dsm server*/
-			if(!dsm_client_ocuppy(pmu_dclient)){
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-					pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d:Warm-reset reason: %s and reg: 0x%x \n",
-					pon->spmi->sid, index_warm?qpnp_pon_warm_reset_reason[index_warm - 1]:
-					"Unknown", pon_warm_reset_reason);
-				dsm_client_notify(pmu_dclient, DSM_ABNORMAL_POWEROFF_REASON_2);
-			}
-		}
-
-		if(POFF_REA_PMIC_OVETEMP == index){
-			dev_info(&pon->spmi->dev,
-				"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-				pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-			/* if power on reason is PMIC_OVETEMP, record this log, and notify to the dsm server*/
-			if(!dsm_client_ocuppy(pmu_dclient)){
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-					pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d:Warm-reset reason: %s and reg: 0x%x \n",
-					pon->spmi->sid, index_warm?qpnp_pon_warm_reset_reason[index_warm - 1]:
-					"Unknown", pon_warm_reset_reason);
-				dsm_client_notify(pmu_dclient, DSM_ABNORMAL_POWEROFF_REASON_2);
-			}
-		}
-
-		if(POFF_REA_STAGE3 == index){
-			dev_info(&pon->spmi->dev,
-				"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-				pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-			/* if power on reason is STAGE3, record this log, and notify to the dsm server*/
-			if(!dsm_client_ocuppy(pmu_dclient)){
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d Power-off reason: %s, reg:0x%x\n",
-					pon->spmi->sid, qpnp_poff_reason[index], poff_sts);
-				dsm_client_record(pmu_dclient,
-					"PMIC@SID%d:Warm-reset reason: %s and reg: 0x%x \n",
-					pon->spmi->sid, index_warm?qpnp_pon_warm_reset_reason[index_warm - 1]:
-					"Unknown", pon_warm_reset_reason);
-				dsm_client_notify(pmu_dclient, DSM_ABNORMAL_POWEROFF_REASON_2);
-			}
-		}
-	}
-}
-
-/* monitor pa and cpu temeraure, if abnormal, notify to dsm*/
-static void monitor_pa_cpu_temperature(void)
-{
-	int pa_temp = 0, cpu_temp = 0;
-	long tsen_temp;
-	uint32_t tsensor_id2;
-	uint32_t tsensor_id5;
-	int ret = 0;
-	int comp_temp;
-
-	pa_temp = dsm_get_pa_temp();
-	cpu_temp = dsm_get_cpu_temp();
-
-	if(strstr(saved_command_line,"androidboot.huawei_swtype=factory")!=NULL) {
-		comp_temp = PA_CPU_TEMP_THRESH_FAC;
-	}else{
-		comp_temp = PA_CPU_TEMP_THRESH;
-	}
-
-	if(comp_temp < pa_temp){
-		/* if pa_temp is over 70 degree, record this log, and notify to the dsm server*/
-		if(!dsm_client_ocuppy(pmu_dclient)){
-			dsm_client_record(pmu_dclient,
-				"pa_temp is high, over %d degree: pa_temp = %d\n", comp_temp , pa_temp);
-			dsm_client_notify(pmu_dclient, DSM_PA_OVERTEMP);
-		}
-	}
-
-	if(PA_CPU_TEMP_THRESH < cpu_temp){
-		/* if cpu_temp is over 70 degree, record this log, and notify to the dsm server*/
-		if(!dsm_client_ocuppy(pmu_dclient)){
-			dsm_client_record(pmu_dclient,
-				"cpu_temp is high, over 70 degree: cpu_temp = %d\n", cpu_temp);
-			dsm_client_notify(pmu_dclient, DSM_CPU_OVERTEMP);
-		}
-	}
-
-	tsensor_id2 = TSENS_ID2;
-	ret = dsm_get_tsens_temp(tsensor_id2, &tsen_temp);
-	if(ret < 0){
-		pr_err("Unable to read temperature for tsen_id:%d. err:%d\n",
-			tsensor_id2, ret);
-		return;
-	}
-
-	if(TSENS_TEMP_THRESH < tsen_temp){
-		/* if zone2(tsens2) temp is over 90 degree, record this log, and notify to the dsm server*/
-		if(!dsm_client_ocuppy(pmu_dclient)){
-			dsm_client_record(pmu_dclient,
-				"zone2 is high, over 90 degree: tsen_temp = %d\n", (int)tsen_temp);
-			pr_info("zone2 is high, over 90 degree: tsen_temp = %ld\n", tsen_temp);
-			dsm_client_notify(pmu_dclient, DSM_THERMAL_ZONE2_OVERTEMP);
-		}
-	}
-
-	tsensor_id5 = TSENS_ID5;
-	ret = dsm_get_tsens_temp(tsensor_id5, &tsen_temp);
-	if(ret < 0){
-		pr_err("Unable to read temperature for tsen_id:%d. err:%d\n",
-			tsensor_id5, ret);
-		return;
-	}
-
-	if(TSENS_TEMP_THRESH < tsen_temp){
-		/* if zone4(tsens5) temp is over 90 degree, record this log, and notify to the dsm server*/
-		if(!dsm_client_ocuppy(pmu_dclient)){
-			dsm_client_record(pmu_dclient,
-				"zone4 is high, over 90 degree: tsen_temp = %d\n", (int)tsen_temp);
-			pr_info("zone4 is high, over 90 degree: tsen_temp = %ld\n", tsen_temp);
-			dsm_client_notify(pmu_dclient, DSM_THERMAL_ZONE4_OVERTEMP);
-		}
-	}
-}
-
-/*===========================================
-FUNCTION: qpnp_read_ldo_status_reg
-DESCRIPTION: this function is used to read ldo_x status reg value
-IPNUT: pon: point to qpnp_pon; status_no: status reg addr offset;
-           ldo_no: ldo number; ldo_val: pointer to ldo status value
-RETURN:	0: success; none 0: read failed
-=============================================*/
-static int qpnp_read_ldo_status_reg(struct qpnp_pon *pon, int status_no, int ldo_no, u8 *ldo_val )
-{
-	int rc = 0;
-	u8 *ldo_status_val;
-	u8 sid = 0;
-	u16 addr = 0;
-
-	if(ldo_val == NULL){
-		pr_info("ldo_val is NULL pointer\n");
-		return -EINVAL;
-	}
-
-	ldo_status_val = ldo_val;
-	sid = ((LDO1_ADDR_BASE + status_no + ldo_no*LDO_OFFSET) >> 16) & 0xF;
-	addr = (LDO1_ADDR_BASE + status_no + ldo_no*LDO_OFFSET) & 0xFFFF;
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, sid,addr, ldo_status_val, 1);
-	if (rc) {
-		pr_err("Unable to read LDO status1 reg value\n");
-		return rc;
-	}
-	return rc;
-}
-
-/* monitor LDO1 to LDO18 output voltage, if voltage is below VREG_OK threshold, notify to dsm*/
-static void monitor_ldo_voltage(struct qpnp_pon *pon)
-{
-	int i = 0;
-	int rc = 0;
-	u8 ldo_status1[LDO_NUM] = {0}, ldo_status2[LDO_NUM] = {0};
-
-	if (!pon)
-		return;
-
-	for(i = 0; i < LDO_NUM; i++){
-
-		if(i == LDO_EMPTY_NO20 || i == LDO_EMPTY_NO21)
-			continue;
-
-		rc = qpnp_read_ldo_status_reg(pon, STATUS2_OFFSET, i, &ldo_status2[i]);
-		if (rc) {
-			pr_err("Unable to read LDO status2 reg value\n");
-			return;
-		}
-
-		if((i >= LDO_OCP_NO4 && i <= LDO_OCP_NO18) || (i == LDO_OCP_NO22)){
-			if((LDO_OCP_MASK & ldo_status2[i])){
-				msleep(10);
-				/* after 10 ms, read status2 reg again */
-				rc = qpnp_read_ldo_status_reg(pon, STATUS2_OFFSET, i, &ldo_status2[i]);
-				if (rc) {
-					pr_err("Unable to read LDO status2 reg value again\n");
-					return;
-				}
-
-				if((LDO_OCP_MASK & ldo_status2[i])){
-					pr_info("LDO_%d OCP,LDO status2 regs val: 0x%x\n",(i+1), ldo_status2[i]);
-					if(!dsm_client_ocuppy(pmu_dclient)){
-						dsm_client_record(pmu_dclient,
-							"LDO_%d OCP,LDO status2 regs val: 0x%x\n",
-							(i+1), ldo_status2[i]);
-						dsm_client_notify(pmu_dclient, ((DSM_LDO4_OCP -LDO_OCP_NO4) + i));
-					}
-				}
-			}
-		}
-
-		if(LDO_ON_MASK & ldo_status2[i]){/* if LDO is on, then check status1 value*/
-			rc = qpnp_read_ldo_status_reg(pon, STATUS1_OFFSET, i, &ldo_status1[i]);
-			if (rc) {
-				pr_err("Unable to read LDO status1 reg value\n");
-				return;
-			}
-
-			if(!(LDO_VOL_MASK & ldo_status1[i])){
-				msleep(10); //delay 10 ms to ensure LDO voltage can keep stably
-				/* after 10 ms, read status1 reg again to check VREG_OK*/
-				rc = qpnp_read_ldo_status_reg(pon, STATUS1_OFFSET, i, &ldo_status1[i]);
-				if (rc) {
-					pr_err("Unable to read LDO status1 reg value\n");
-					return;
-				}
-
-				if(!(LDO_VOL_MASK & ldo_status1[i])){
-				/* LDOx voltage is below VREG_OK threshold, save the log, and notify to dsm server*/
-					pr_info("LDO_%d voltage is below VREG_OK threshold"
-						"LDO status1 and status2 regs val: 0x%x, 0x%x\n",
-						(i+1), ldo_status1[i], ldo_status2[i]);
-					if(!dsm_client_ocuppy(pmu_dclient)){
-						dsm_client_record(pmu_dclient,
-							"LDO_%d voltage is below VREG_OK threshold"
-							"LDO status1 and status2 regs val: 0x%x, 0x%x\n",
-							(i+1), ldo_status1[i], ldo_status2[i]);
-						dsm_client_notify(pmu_dclient, (DSM_LDO1_VOLTAGE_LOW+i));
-					}
-				}
-			}
-		}
-	}
-}
-
-static void dsm_pmu_work_func(struct work_struct *work)
-{
-	static int check_poweron_off_reason_flag = 0;
-	struct qpnp_pon *pon =
-		container_of(work, struct qpnp_pon, dsm_pmu_work.work);
-
-	if (!pmu_dclient) {
-		pmu_dclient = dsm_register_client(&dsm_pmu);
-	}
-
-	if(!check_poweron_off_reason_flag){
-		monitor_power_on_off_reason(pon);
-		check_poweron_off_reason_flag = 1;
-	}
-
-	monitor_pa_cpu_temperature();
-
-	monitor_ldo_voltage(pon);
-
-	schedule_delayed_work(&pon->dsm_pmu_work, CHECK_PMU_STATUS_DELAY);
-}
-#endif
-
 static int qpnp_pon_probe(struct spmi_device *spmi)
 {
 	struct qpnp_pon *pon;
@@ -2754,11 +2330,6 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	init_timer(&lcd_pwr_status.lcd_dsm_t);
 #endif
 
-#ifdef CONFIG_HUAWEI_PMU_DSM
-	INIT_DELAYED_WORK(&pon->dsm_pmu_work, dsm_pmu_work_func);
-	schedule_delayed_work(&pon->dsm_pmu_work, CHECK_PMU_STATUS_DELAY);
-#endif
-
 	/* register the PON configurations */
 	rc = qpnp_pon_config_init(pon);
 	if (rc) {
@@ -2875,10 +2446,6 @@ static int qpnp_pon_remove(struct spmi_device *spmi)
 
 	cancel_delayed_work_sync(&pon->bark_work);
 
-#ifdef CONFIG_HUAWEI_PMU_DSM
-	cancel_delayed_work_sync(&pon->dsm_pmu_work);
-#endif
-
 	if (pon->pon_input)
 		input_unregister_device(pon->pon_input);
 	qpnp_pon_debugfs_remove(spmi);
@@ -2890,33 +2457,6 @@ static int qpnp_pon_remove(struct spmi_device *spmi)
 	return 0;
 }
 
-
-#ifdef CONFIG_HUAWEI_PMU_DSM
-static int qpnp_pon_suspend(struct device *dev)
-{
-	struct qpnp_pon *pon = dev_get_drvdata(dev);
-
-	cancel_delayed_work_sync(&pon->dsm_pmu_work);
-
-	return 0;
-}
-static int qpnp_pon_resume(struct device *dev)
-{
-	struct qpnp_pon *pon = dev_get_drvdata(dev);
-
-	schedule_delayed_work(&pon->dsm_pmu_work,
-				msecs_to_jiffies(0));
-
-	return 0;
-}
-
-static const struct dev_pm_ops qpnp_pon_pm_ops = {
-	.suspend	= qpnp_pon_suspend,
-	.resume	= qpnp_pon_resume,
-};
-#endif
-
-
 static struct of_device_id spmi_match_table[] = {
 	{ .compatible = "qcom,qpnp-power-on", },
 	{}
@@ -2926,9 +2466,6 @@ static struct spmi_driver qpnp_pon_driver = {
 	.driver		= {
 		.name	= "qcom,qpnp-power-on",
 		.of_match_table = spmi_match_table,
-#ifdef CONFIG_HUAWEI_PMU_DSM
-		.pm		= &qpnp_pon_pm_ops,
-#endif
 	},
 	.probe		= qpnp_pon_probe,
 	.remove		= qpnp_pon_remove,
